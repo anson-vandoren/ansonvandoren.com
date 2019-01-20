@@ -37,7 +37,7 @@ disqusShortname = "ansonvandoren-com"
 
     math = true
 
-    custom_css = ["css/custom.css"]
+    custom_css = [""]
 
 [[params.social]]
     name = "Github"
