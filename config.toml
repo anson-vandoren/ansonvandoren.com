@@ -19,7 +19,7 @@ disqusShortname = "ansonvandoren-com"
 [params]
     author = "Anson VanDoren"
     info = "Problem Solver, Generalist Engineer, Systems Thinker"
-    description = "Anson VanDoren's personal website"
+    description = "AnsonVanDoren.com"
     keywords = "blog,developer,personal,engineering,programming"
     avatarURL = "images/avatar.jpeg"
     email = "anson@ansonvandoren.com"
