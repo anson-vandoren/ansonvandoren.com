@@ -1,3 +1,79 @@
-baseURL = "http://example.org/"
-languageCode = "en-us"
-title = "My New Hugo Site"
+baseURL = "http://ansonvandoren.com/"
+title = "Anson VanDoren"
+newContentEditor = "code"
+googleAnalytics = "UA-132809117-1"
+
+theme = "hugo-coder"
+languageCode = "en"
+defaultContentLanguage = "en"
+
+paginate = 20
+canonifyURLs = true
+
+pygmentsStyle = "pygments"
+pygmentsCodeFences = true
+pygmentsCodeFencesGuessSyntax = true
+
+disqusShortname = "ansonvandoren-com"
+
+[params]
+    author = "Anson VanDoren"
+    info = "Problem Solver, Generalist Engineer, Systems Thinker"
+    description = "Anson VanDoren's personal website"
+    keywords = "blog,developer,personal,engineering,programming"
+    avatarURL = "images/avatar.jpeg"
+    email = "anson@ansonvandoren.com"
+
+    favicon_32 = "images/favicon-32x32.png"
+    favicon_16 = "images/favicon-16x16.png"
+
+    footerContent = ""
+
+    hideCredits = false
+    hideCopyright = false
+
+    rtl = false
+
+    math = true
+
+    custom_css = ["css/custom.css"]
+
+[[params.social]]
+    name = "Github"
+    icon = "fab fa-github fa-2x"
+    weight = 1
+    url = "https://github.com/anson-vandoren/"
+
+[[params.social]]
+    name = "LinkedIn"
+    icon = "fab fa-linkedin fa-2x"
+    weight = 2
+    url = "https://www.linkedin.com/in/anson-vandoren-b26793a0/"
+
+[[params.social]]
+    name = "Twitter"
+    icon = "fab fa-twitter fa-2x"
+    weight = 3
+    url = "https://twitter.com/followingmywife"
+
+[[params.social]]
+    name = "Telegram"
+    icon = "fab fa-telegram-plane fa-2x"
+    weight = 4
+    url = "https://t.me/ansonvandoren"
+
+[[params.social]]
+    name = "Email"
+    icon = "far fa-envelope fa-2x"
+    weight = 5
+    url = "mailto:anson@ansonvandoren.com"
+
+[[menu.main]]
+    name = "About"
+    weight = 1
+    url = "/about/"
+
+[[menu.main]]
+    name = "Blog"
+    weight = 2
+    url = "/posts/"
