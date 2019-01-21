@@ -1,8 +1,10 @@
----
-title: "Configuring Nginx to Proxy Webhooks"
-date: 2019-01-20T17:25:45-08:00
-draft: false
----
++++
+title = "Configuring Nginx to Proxy Webhooks"
+tags = ["Nginx", "Proxy", "Webhooks"]
+description = "Configuring Nginx to proxy calls to a webhooks server"
+date = 2019-01-20T17:25:45-08:00
+draft = false
++++
 
 In my [last post](/posts/deploy-hugo-from-github/), I set up a workflow that allows me to make changes to my website in a local git repository, push it [to GitHub](https://github.com/anson-vandoren/ansonvandoren.com.git), and have my remote server build the static content with Hugo and serve up the changes. On the remote server, I handled the GitHub hooks through a small Golang server called `webhook`, but wasn't really happy with needing to open up a separate port (it defaults to 9000) on my server firewall. In the grand scheme of things, it probably doesn't matter much from a security standpoint, but I thought I could do a bit better and learn something in the process of configuring Nginx to proxy the requests through HTTPS.
 
