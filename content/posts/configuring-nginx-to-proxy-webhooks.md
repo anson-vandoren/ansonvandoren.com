@@ -2,7 +2,7 @@
 title = "Configuring Nginx to Proxy Webhooks"
 tags = ["Nginx", "Proxy", "Webhooks"]
 description = "Configuring Nginx to proxy calls to a webhooks server"
-date = 2019-01-20T17:25:45-08:00
+date = 2019-01-21T08:00:00-08:00
 draft = false
 +++
 
