@@ -11,7 +11,7 @@ externalLink = ""
 
 ### Doing things the hard way
 
-I recently helped my brother get his first website up and running. After a bit of research, we decided on static HTML, served via [Caddy](https://caddyserver.com/) on a [Digital Ocean](https://digitalocean.com) droplet. The choice of Caddy was predominantly because it has built-in webooks that would allow him to maintain his website as a GitHub repo, and have it automatically udpate every time he pushed a commit to master.
+I recently helped my brother get his first website up and running. After a bit of research, we decided on static HTML, served via [Caddy](https://caddyserver.com/) on a [Digital Ocean](https://digitalocean.com) droplet. The choice of Caddy was predominantly due to its built-in hooks that would allow him to maintain his website as a GitHub repo, and have it automatically update every time he pushed a commit.
 
 When redesigning my website yesterday, I should have done the same thing, since our use-cases are pretty similar. But I didn't... Instead, I ended up with:
 
@@ -20,21 +20,19 @@ When redesigning my website yesterday, I should have done the same thing, since 
 - [Let's Encrypt](https://letsencrypt.org/) to avoid the 'Not Secure' message in the URL bar
 - [Hugo](https://gohugo.io) static site generator (so I can use Markdown!)
 
-So now I'm left with needing to figure out a way to implement the following:
+So now I'm left needing to figure out a way to implement the following workflow:
 
 1. Make a change, or add a new blog post locally. Commit the change locally and push to GitHub.
 2. Magically have my website update to reflect the new content.
 
-Ideally, I want it to be as simple as that. My first implementation ([based on this great guide](https://www.digitalocean.com/community/tutorials/how-to-deploy-a-hugo-site-to-production-with-git-hooks-on-ubuntu-14-04)) was more complicated, and involved setting a remote on my server that I could push to (in addition to GitHub). I don't like this solution because:
+Ideally, I want it to be as simple as that. My first implementation ([based on this guide](https://www.digitalocean.com/community/tutorials/how-to-deploy-a-hugo-site-to-production-with-git-hooks-on-ubuntu-14-04)) was more complicated, and involved setting a remote repo on my server that I could push to (in addition to GitHub). I don't like this solution because:
 
 1. It involves an extra step, and means I need to maintain two separate remote repos.
-2. It makes it more likely that I'll forget to push to GitHub as well, so when my server inevitably dies due to neglect or freak accident, I likely won't have a solid backup.
+2. It makes it more likely that I'll forget to push to GitHub as well, so when my server inevitably dies due to neglect or freak accident, I may not have a solid backup.
 
 This is still a workable solution, but I want it to be as streamlined as possible. In hindsight, I should have just used Caddy ([with this awesome tutorial](https://www.digitalocean.com/community/tutorials/how-to-host-a-website-with-caddy-on-ubuntu-16-04)), but sometimes I like doing things the hard way.
 
-### What I'll need
-
-I need to figure out the details, but bascially I need:
+### What I need
 
 1. A GitHub webhook set up to monitor a [PushEvent](https://developer.github.com/v3/activity/events/types/#pushevent) and send that along to my server.
 2. Nginx to receive the POST event from GitHub and forward it to an internal listener of some sort.
@@ -49,28 +47,28 @@ Easy, right?
 
 ###### Setting up webhook
 
-The go-to (pun intended) server for this seems to be [webhook](https://github.com/adnanh/webhook), written in go by [Adnan Hajdarević](https://github.com/adnanh). I don't have a Golang environment running on the remote and don't really need one, so the `go get` option wasn't going to work, nor building from source. The Ubuntu package via `apt-get install webhook` was several versions behind the latest release. So I opted to download the latest released binary instead. Note that you need to choose the correct version for your server. In my case, I'm running Ubuntu 18.04, and the `uname -i` command shows I'll want the 64-bit version for Linux. You can find a list of the pre-built binaries [here](https://github.com/adnanh/webhook/releases)
+The go-to (pun intended) server for this seems to be [webhook](https://github.com/adnanh/webhook), written in Go by [Adnan Hajdarević](https://github.com/adnanh). I don't have a Golang environment running on the remote and don't really need one for anything else, so the `go get` option wasn't optimal, nor was building from source. The Ubuntu package via `apt-get install webhook` was several versions behind the latest release, so I opted to download the latest released binary instead.
 
-Figure out what architecture I need:
-{{< highlight shell "hl_lines=2" >}}
+First I had to figure out what architecture I need:
+```shell
 $ uname -i
 x86_64
-{{< / highlight>}}
-Download the correct release and unzip it
+```
+Next, download the correct release (x86_64 version) [from here](https://github.com/adnanh/webhook/releases) and unzip it:
 ```shell
 $ wget https://github.com/adnanh/webhook/releases/download/2.6.9/webhook-linux-amd64.tar.gz
 $ tar -xvf webhook*.tar.gz
 ```
-Make the binary available and clean up:
+Make the binary available in my environment, and clean up:
 ```shell
 $ sudo mv webhook-linux-amd64/webhook /usr/local/bin
 $ rm -rf webhook-linux-amd64*
 ```
 Make sure everything worked:
-{{< highlight shell "hl_lines=2" >}}
+```shell
 $ webhook -version
 webhook version 2.6.9
-{{< / highlight >}}
+```
 `webhooks` needs a hook file (which tells it how to handle incoming requests), and a script that it should run if it matches an incoming request. I made a place for those to live, and transferred ownership to my (non-root) user:
 ```shell
 $ sudo mkdir /opt/scripts
@@ -81,17 +79,18 @@ $ sudo chown -R $USER:$USER /opt/hooks
 
 ###### Creating a hook
 
-Next I set up a `hooks.json` file to allow `webhook` to be triggered by an incoming GitHub POST. I like vim, but you can use nano or whatever you prefer:
+Next I set up a `hooks.json` file to allow `webhook` to trigger on an incoming GitHub POST. I like vim, but you can use nano or whatever other editor you prefer:
 ```shell
 $ vim /opt/hooks/hooks.json
 ```
- [The documentation](https://github.com/adnanh/webhook/blob/master/docs/Hook-Definition.md) has more details about available properties, but I'll just show the configuration I ended up using.\
- Before doing that, though, I'm going to need a secret I can share with GitHub so that I can ensure the hook is only triggered by them. You can use anything you want (I'm showing `my-github-secret` in the example below), but one easy way to generate a secret is to run `uuidgen`:
+ [The documentation](https://github.com/adnanh/webhook/blob/master/docs/Hook-Definition.md) has more details about available properties, but I'll just show the configuration I ended up using.
+
+ Before doing that, though, I need a secret I can share with GitHub to ensure the hook is only triggered appropriately (i.e., not by someone randomly sending a POST request to the correct endpoint). You can use anything you want as the secret, but one easy way to generate a secret is to run `uuidgen`:
  ```shell
  $ uuidgen
  81febb4d-4483-4fc8-a2dc-8ece300bc5f4
  ```
- Copy this value, and use it both in the `hooks.json` file below, and also when you do the next steps on GitHub.
+ This will output a nice long random value that is expected to be unique ([see here for more detail](http://man7.org/linux/man-pages/man1/uuidgen.1.html)). Copy this value, and use it both in the JSON file below, and also when you do the next steps on GitHub. Note that the example below shows "my-github-secret" instead; you'll want to replace this in your version.
 ```json
 [
     {
@@ -146,7 +145,7 @@ $ vim /opt/hooks/hooks.json
     }
 ]
 ```
-The [GitHub documentation](https://developer.github.com/v3/activity/events/types/) has more details about the different payload parameters for each event type. Basically, the above hook will listen on an endpoint called `redeploy`, and if the `trigger-rule` is satisfied, will run the `redeploy.sh` shell script with arguments from the POST message. I set up the trigger rule so that it will only trigger if the header contains a hash of the secret I'll share with GitHub, and the push happened on _master_ branch in my GitHub repo.
+The [GitHub documentation](https://developer.github.com/v3/activity/events/types/) has more details about the different payload parameters for each event type. Basically, the above hook will listen on an endpoint called `redeploy`, and if the `trigger-rule` is satisfied, will run the `redeploy.sh` shell script with arguments from the POST message. This trigger rule will guarantee that it was sent from GitHub (only they have my secret), and the push happened on _master_ branch in my GitHub repo (I don't want to rebuild if the commit was only to a feature/testing branch).
 
 ###### Configuring the firewall
 Before moving on, I need to make sure my server firewall will allow the hooks through on port 9000:
@@ -180,19 +179,21 @@ Nginx Full (v6)            ALLOW       Anywhere (v6)
 ```
 DigitalOcean has a [good primer on ufw](https://www.digitalocean.com/community/tutorials/ufw-essentials-common-firewall-rules-and-commands) if you need more details on configuring a firewall.
 
-_Edit: in the end, I configured Nginx to proxy requests for https://ansonvandoren.com/hooks/ through to my webhooks server, and closed port 9000 again. I may write a separate post on that since it wasn't as trivial as I wanted it to be, but the above method works just as well. The basics of what I did were from hints on [this article](https://labs.lacnic.net/a-new-platform-for-lacniclabs/)_
+_Edit: In the end, I decided to configure Nginx to proxy requests for https://ansonvandoren.com/hooks/ through to my webhooks server instead, and closed port 9000 again. I may write a separate post on that since it wasn't as trivial as I wanted it to be, but the above method works just as well. The basics of what I did were from hints on [this article](https://labs.lacnic.net/a-new-platform-for-lacniclabs/)._
 
 ###### Setting up GitHub
 
-1. On the repo hosting my static site, I navigated to **Settings** > **Webhooks** > **Add Webhook**.
-2. For the **Payload URL**, I entered: `http://ansonvandoren.com:9000/hooks/redeploy`. \
-`redeploy` is the id I set up in my `hooks.json` file.
-3. I chose **application/json** for **Content type**, and entered the secret I generated with uuidgen in the **Secret** field.
+1. On the GitHub page for my static site, I navigated to **Settings** > **Webhooks** > **Add Webhook**.
+2. For the **Payload URL**, I entered: `http://ansonvandoren.com:9000/hooks/redeploy` 
+(where `redeploy` is the id I set up in my hooks.json file).
+3. I chose **application/json** for **Content type**, and pasted the secret I generated with uuidgen into the **Secret** field.
 4. I left **Enable SSL verification** selected, and for **Which events would you like to trigger this webhook?**, I chose **Just push event**, and then clicked **Add webhook**.
 
-Right away I see a notification icon showing that it failed to deliver, since I haven't actually started the webhook server yet on my remote machine. Once I do, though, GitHub will start sending POST requests any time a commit is pushed to my website repo.
+Right away I see a notification icon showing that it failed to deliver, since I haven't actually started the webhook server yet on my remote machine. Once I do, though, GitHub will start sending POST requests every time a commit is pushed to my website repo.
 
-It is possible to set up `webhook` to use HTTPS if you need to, but it's not as straightforward and I don't have a real need to in my case. If you need to do this, check out [this section of the docs](https://github.com/adnanh/webhook#using-https)
+It is possible to set up `webhook` to use HTTPS if you need to, but it's not as straightforward and I don't have a real need to in my case. If you need to do this, check out [this section of the docs](https://github.com/adnanh/webhook#using-https).
+
+_Edit: Using Nginx to proxy requests through to `webhooks` as I did later actually makes it easier to use HTTPS for this, since I already had it set up for my web page thanks to Let's Encrypt. I may write a separate post about setting this up later._
 
 ###### Writing the redeploy script
 
@@ -203,12 +204,13 @@ $ vim /opt/scripts/redeploy.sh
 Your needs may vary and you may need to customize this script in different ways than I did, but below should give you some ideas about how to proceed.
 ```shell
 #!/bin/bash -e
+# Note the '-e' in the line above. This is required for error trapping implemented below.
 
 # Repo name on GitHub
 REMOTE_REPO=https://github.com/anson-vandoren/ansonvandoren.com.git
-# A place to clone the remote repo so Hugo can see it
+# A place to clone the remote repo so Hugo can build from it
 WORKING_DIRECTORY=$HOME/staging_area
-# Location (server block) where Nginx is serving my files from
+# Location (server block) where Nginx looks for content to serve
 PUBLIC_WWW=/var/www/ansonvandoren.com/html
 # Backup folder in case something goes wrong during this script
 BACKUP_WWW=$HOME/backup_html
@@ -228,6 +230,8 @@ function cleanup {
     # !!Placeholder for Telegram notification
 }
 
+# Call the cleanup function if this script exits abnormally. The -e flag
+# in the shebang line ensures an immediate abnormal exit on any error
 trap cleanup EXIT
 
 # Clear out the working directory
@@ -358,7 +362,7 @@ WantedBy=default.target
 ```
 For a complete descriptions of the sections of a service file, you can check out [this documentation](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system_administrators_guide/sect-managing_services_with_systemd-unit_files) from RedHat.
 
-Next I needed to ensure that my non-root user (shown below as `myuser`, but substitute whatever login you are using for this) could keep a process running even when not logged in. Without doing this, as soon as I logged out from my ssh session, the process would exit and I'd be right back where I started with all manual control. After enabling 'lingering', I enabled my new service and started it.
+Next I needed to ensure that my non-root user (shown below as 'myuser', but substitute whatever login you are using for this) could keep a process running even when not logged in. After enabling 'lingering', I enabled my new service and started it.
 ```shell
 $ sudo loginctl enable-linger myuser
 $ systemctl --user enable webhook
