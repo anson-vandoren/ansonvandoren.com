@@ -7,7 +7,7 @@ slug = ""
 tags = ["GitHub", "Hugo", "Webhooks"]
 categories = []
 externalLink = ""
-aliases = ["/posts/DeployHugoFromGitHub"]
+aliases = ["/posts/deployhugofromgithub/"]
 +++
 
 ### Doing things the hard way
