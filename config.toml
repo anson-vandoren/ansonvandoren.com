@@ -37,10 +37,8 @@ disqusShortname = "ansonvandoren-com"
 
     math = true
 
-    custom_css = [""]
-
 [[params.social]]
-    name = "Github"
+    name = "GitHub"
     icon = "fab fa-github fa-2x"
     weight = 1
     url = "https://github.com/anson-vandoren/"
