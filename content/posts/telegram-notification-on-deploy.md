@@ -9,19 +9,21 @@ categories = []
 externalLink = ""
 +++
 
-I recently [set up webhooks](/posts/deploy-hugo-from-github/) on my web server to receive PUT requests from GitHub whenever I pushed a change to [ansonvandoren.com](https://ansonvandoren.com). It works well, but since it's running as a background service on a remote server, I don't get a lot of detail about its status.
+I recently [set up webhooks](/posts/deploy-hugo-from-github/) on my remote machine to receive POST requests from GitHub whenever I pushed a change to [ansonvandoren.com](https://ansonvandoren.com). It works well, but since it's running as a background service on a remote server, I don't get a lot of detail about its status.
 
-About a year ago, when I first started using [Telegram](https://telegram.org) as my daily-driver chat app (thanks to finally getting fed up with Google cancelling every chat service it's ever invented), I noticed they also offered an API. I immediately thought of several things that could be useful for, but lacked the time and motivation to explore it further.
+About a year ago, when I first started using [Telegram](https://telegram.org) as my daily-driver chat app (thanks, Google, for cancelling or ruining every chat service you've ever invented), I noticed they also offered an API. I immediately thought of several things that could be useful for, but lacked the time and motivation to explore it further.
+
+Today I had both a good project, and some time to implement it, so I started fiddling around.
 
 ### What I want to accomplish:
 
 **Current process**
 
-1. Make changes locally, commit to a git repo, and push to GitHub
+1. Make website changes locally, commit them to a git repo, and push to GitHub.
 2. GitHub sends a POST request to my server, which then:
-  - Clones the repo locally on the server
-  - Builds the static site using Hugo
-  - Copies the built content to the public WWW folder
+  - Clones the repo locally on the server.
+  - Builds the static site using Hugo.
+  - Copies the built content to the public WWW folder.
 3. If any part of 2. fails, it will roll back to the previous version and log a simple failure message.
 
 **What I want to add**
@@ -33,7 +35,8 @@ Integrate with Telegram so that I will get a notification when a build/deploy su
 Here's my current build script:
 ```shell
 #!/bin/bash -e
-# Note the '-e' in the line above. This is required for error trapping implemented below.
+# Note the '-e' in the line above. This is required for the
+# error trapping implemented below.
 
 # Repo name on GitHub
 REMOTE_REPO=https://github.com/anson-vandoren/ansonvandoren.com.git
@@ -51,12 +54,12 @@ commit_message=$1
 pusher_name=$2
 commit_id=$3
 
-# If something goes wrong, put the previous verison back in place
+# If something goes wrong, put the previous version back in place
 function cleanup {
     echo "A problem occurred. Reverting to backup."
     rsync -aqz --del $BACKUP_WWW/ $PUBLIC_WWW
     rm -rf $WORKING_DIRECTORY
-    # !!Placeholder for Telegram notification
+    # **Placeholder for Telegram notification**
 }
 
 # Call the cleanup function if this script exits abnormally. The -e flag
@@ -71,14 +74,14 @@ rsync -aqz $PUBLIC_WWW/ $BACKUP_WWW
 # Clone the new version from GitHub
 git clone $REMOTE_REPO $WORKING_DIRECTORY
 
-# !!Placeholder for Telegram notification
+# **Placeholder for Telegram notification**
 
-# Delete old version
+# Delete the old version
 rm -rf $PUBLIC_WWW/*
 # Have Hugo generate the new static HTML directly into the public WWW folder
 /usr/local/bin/hugo -s $WORKING_DIRECTORY -d $PUBLIC_WWW -b "https://${MY_DOMAIN}"
 
-# !!Placeholder for Telegram notification
+# **Placeholder for Telegram notification**
 
 # Clear out working directory
 rm -rf $WORKING_DIRECTORY
@@ -89,35 +92,36 @@ You can see where I stubbed in the places I thought I could hook into Telegram, 
 
 ### Creating a Telegram bot
 
-After some initial research on the [Telegram API documentation](https://core.telegram.org/bots/api), the first step seems to be to create a new bot using the "BotFather". This is a very painless process through the Telegram app, and in a few seconds I was the proud owner of [ansonvandoren_bot](https://t.me/ansonvandoren_bot), and I had my API token (hereafter denoted `<TOKEN>`)
+After some initial research on the [Telegram API documentation](https://core.telegram.org/bots/api), the first step seems to be to create a new bot using the "[BotFather](https://telegram.me/botfather)". This is a painless process done entirely through the Telegram app, and within a few seconds I was the proud owner of [ansonvandoren_bot](https://t.me/ansonvandoren_bot), and I had my API token (hereafter denoted `<TOKEN>`)
 
-After obtaining the token, I needed to start a chat with the bot so I could get a conversation ID. I don't think it's possible for the bot to initiate a chat (probably a good thing), so I need to take the first step. The BotFather conversation will have a link to start talking with your robotic spawn, or else you can just go to https://t.me/your_new_bot to get redirected.
+After obtaining the token, I started a chat with the bot so I could get a conversation ID. I don't think it's possible for the bot to initiate a chat (probably a good thing), so I need to take the first step. The BotFather conversation will have a link to start talking with your robotic spawn, or else you can just go to https://t.me/your_new_bot to get redirected.
 
-Getting the chat ID can be done from a browser, but I just used curl
+Getting the chat ID can be done from a browser, or from the command line via a tool like `curl`. If you're not familiar with the curl tool, there is a [very readable guide here](https://ec.haxx.se/). In this first case, I'm using it with no arguments, which defaults to sending a HTTP GET request to the URL specified, and displaying the output.
 ```shell
 $ curl https://api.telegram.org/bot<TOKEN>/getUpdates
 {"ok":true,"result":[{"update_id":424724792,
 ..."chat":{"id":123456184,"first_name":"Anson","last_name":"VanDoren",...
 ```
-The `"id"` field here is what I was looking for, and is the identifier for my conversation with the bot. I think it should stay the same over time, but am not 100% sure. I'll come back and update this if it ends up changing later. I'll refer to this field as `<CHAT_ID>` for the rest of this post.
+The `"id":123456184` field here is what I was looking for, and is the identifier for my conversation with the bot. Since my particular use-case only involves a single conversation (me vs. The Bot), I don't need to get any fancier than this. I'll refer to this field as `<CHAT_ID>` for the rest of this post.
 
-Now that I've got the two key pieces of information, I can try sending a message (scroll right to see the whole thing):
+Now that I've got the two key pieces of information, I can try sending a message. I'm using `curl` again, but this time with the `-s` (silent) and `-X POST` use the HTTP POST verb instead of GET. I'm specifying the parameters I want to send with the `-d` options, one at a time. Scroll right to see the whole thing:
 ```shell
 $ curl -s -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d chat_id=<CHAT_ID> -d text="The bot speaks!"
 ```
 {{< figure src="/images/telegram-bot-test-message.jpg#center" caption="Sending a test message" >}}
 
 
-It worked! That should honestly be most of the API functionality I'll need for this little project. The API is actually very robust, and geared toward richer content and interactivity. I will probably come back and explore it later, but this project has a pretty narrow scope.
+It worked! That should really be most of the API functionality I'll need for this little project. The API is actually very robust, and geared toward richer content and interactivity. I will probably come back and explore it later, but this project has a pretty narrow scope and I just wanted to get it finished up.
 
 ### Integrating the bot with my build/deploy script
 
-All that's left is to figure out how to work this into my build script. This part can be as basic or complicated as you want. Below is how I decided to get notified:
+All that's left is to figure out how to work this into my build script. This part can be as basic or complicated as you want. Below is how I decided to get notified (additions & changes highlighted):
 
 
-{{< highlight shell "hl_lines=15-27 40-41 56-58 63-69" >}}
+{{< highlight shell "hl_lines=16-29 41-42 57-59 64-70" >}}
 #!/bin/bash -e
-# Note the '-e' in the line above. This is required for error trapping implemented below.
+# Note the '-e' in the line above. This is required for
+# error trapping implemented below.
 
 # Repo name on GitHub
 REMOTE_REPO=https://github.com/anson-vandoren/ansonvandoren.com.git
@@ -197,9 +201,9 @@ A few things I learned:
 - How to pass arguments to a bash function: this is different from 'normal' progrmaming languages in that you don't define what the arguments are, but simply refer to them in sequential order with $1, $2, etc. within the function.
 - How to hide the output of a command: `curl... > /dev/null`
 - How to redirect error output to stdout: `2>&1`
-- How to get the last error message: `$?`.\
+- How to get the last error message raised by the script: `$?` \
 _Note: I have not been able to test this yet because I've not seen any errors on deployment. StackOverflow seems pretty convinced it should work, though._
-- A limited subset of HTML can be used to format Telegram bot messages. The API documentation lists which are supported. Markdown (an alternative formatting option here) does not work well inside a bash script because the back-ticks mess up the formatting of the script.
+- A [limited subset of HTML](https://core.telegram.org/bots/api#formatting-options) can be used to format Telegram bot messages. Markdown (an alternative formatting option allowed by the API) does not work well inside a bash script because the back-ticks mess up the formatting of the script.
 - You can save the output of a command to a variable using `variable_name=$(command)`
 - To use the full (multi-line) response stored from a command output as above, you need to put it inside double quotes. `$hugo_response` in my example would only show the first line, but `"$hugo_response"` does multi-line.
 
