@@ -38,11 +38,7 @@ I created a bash script in my project's root folder and saved it as `telegram_no
 
 BOT_URL="https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage"
 
-if [[ -z ${TRAVIS_BRANCH} ]]; then
-    TRAVIS_BRANCH="UNKNOWN"
-fi
-
-if [[ $TRAVIS_TEST_RESULT ]]; then
+if [ $TRAVIS_TEST_RESULT -ne 0 ]; then
     build_status="failed"
 else
     build_status="succeeded"
