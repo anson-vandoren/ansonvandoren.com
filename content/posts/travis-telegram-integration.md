@@ -11,7 +11,7 @@ externalLink = ""
 
 I'm working through an [interesting mini-course](https://testdriven.io/courses/microservices-with-docker-flask-and-react/) on building microservices with Docker, Flask, and React, and had set up [Travis CI](https://travis-ci.com/) to build and test the services as I went. About halfway through the course, the builds started getting very time-consuming, and at times I needed to wait for a Travis job to complete before moving on to the next step, especially once I started using it to deploy containers to AWS.
 
-Travis doesn't offer any out-of-the-box Telegram notification option, but after setting up my blog redeploy hook to notify me, it seemed like an easy job to duplicate here. I'm not going to repeat the steps for getting a Telegram bot set up (see [this post ](http://localhost:1313/posts/telegram-notification-on-deploy/) for instructions), but just explain how to make it work for Travis in particular.
+Travis doesn't offer any out-of-the-box Telegram notification option, but after setting up my blog redeploy hook to notify me, it seemed like an easy job to duplicate here. I'm not going to repeat the steps for getting a Telegram bot set up (see [this post ](http://ansonvandoren.com/posts/telegram-notification-on-deploy/) for instructions), but just explain how to make it work for Travis in particular.
 
 #### Set up on Travis
 
