@@ -16,6 +16,9 @@ pygmentsCodeFencesGuessSyntax = true
 
 disqusShortname = "ansonvandoren-com"
 
+[Blackfriday]
+    hrefTargetBlank = true
+
 [params]
     author = "Anson VanDoren"
     info = "Problem Solver, Generalist Engineer, Systems Thinker"
