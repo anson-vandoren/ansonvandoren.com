@@ -61,15 +61,21 @@ disqusShortname = "ansonvandoren-com"
     url = "https://twitter.com/followingmywife"
 
 [[params.social]]
+    name = "Instagram"
+    icon = "fab fa-instagram fa-2x"
+    weight = 4
+    url = "https://instagram.com/AnsonVanDoren"
+
+[[params.social]]
     name = "Telegram"
     icon = "fab fa-telegram-plane fa-2x"
-    weight = 4
+    weight = 5
     url = "https://t.me/ansonvandoren"
 
 [[params.social]]
     name = "Email"
     icon = "far fa-envelope fa-2x"
-    weight = 5
+    weight = 6
     url = "mailto:anson@ansonvandoren.com"
 
 [[menu.main]]
