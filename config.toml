@@ -64,7 +64,7 @@ disqusShortname = "ansonvandoren-com"
     name = "Instagram"
     icon = "fab fa-instagram fa-2x"
     weight = 4
-    url = "https://instagram.com/AnsonVanDoren"
+    url = "https://instagram.com/ansonvandoren"
 
 [[params.social]]
     name = "Telegram"
