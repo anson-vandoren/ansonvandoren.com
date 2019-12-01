@@ -4,6 +4,7 @@ title = "johndoe"
 theme = "hugo-coder"
 
 languagecode = "en"
+defaultcontentlanguage = "en"
 
 paginate = 20
 canonifyurls = true
@@ -32,11 +33,26 @@ disqusShortname = "yourdiscussshortname"
 
     rtl = false
 
-    # Use inverted colors
-    inverted = false
+    # Specify light/dark colorscheme
+    # Supported values:
+    # "auto" (use preference set by browser)
+    # "dark" (dark background, light foreground)
+    # "light" (light background, dark foreground) (default)
+    colorscheme = "light"
+
+    # Series see also post count
+    maxSeeAlsoItems = 5
 
     # Custom CSS
     custom_css = []
+    
+    # Custom JS
+    custom_js = []
+
+[taxonomies]
+  category = "categories"
+  series = "series"
+  tag = "tags"
 
 [[params.social]]
     name = "Github"
@@ -67,67 +83,60 @@ disqusShortname = "yourdiscussshortname"
 
 [languages]
     [languages.en]
-        languagename = "English" # The language name to be displayed in the selector.
-        title = "John Doe"
+        languagename = "English"
 
-        # You can configure the theme parameter for each language.
-        [languages.en.params]
-        author = "John Doe"
-        info = "Full Stack DevOps and Magician"
-        description = "John Doe's personal website"
-        keywords = "blog,developer,personal"
+        [languages.en.menu]
 
-        [languages.en.menu] # It is possible to change the menu too.
-
-        [[languages.en.menu.main]]
-        name = "About"
-        weight = 1
-        url = "/about/"
-
-        [[languages.en.menu.main]]
-        name = "Blog"
-        weight = 2
-        url = "/posts/"
-
-        [[languages.en.menu.main]]
-        name = "Projects"
-        weight = 3
-        url = "/projects/"
-
-        [[languages.en.menu.main]]
-        name = "Contact me"
-        weight = 5
-        url = "/contact/"
-
-
-    [languages.pl]
-        languagename = "Polski"
-        title = "John Doe po polsku"
-
-        [languages.pl.params]
-            author = "John Doe"
-            description = "Strona domowa John'a Doe"
-            keywords = "blog,developer,strona domowa"
-            info = "Full Stack DevOps i Magik"
-
-        [languages.pl.menu]
-
-            [[languages.pl.menu.main]]
-            name = "O mnie"
+            [[languages.en.menu.main]]
+            name = "About"
             weight = 1
-            url = "/pl/about/"
+            url = "about/"
 
-            [[languages.pl.menu.main]]
+            [[languages.en.menu.main]]
             name = "Blog"
             weight = 2
-            url = "/pl/posts/"
+            url = "posts/"
 
-            [[languages.pl.menu.main]]
-            name = "Projektowanie"
+            [[languages.en.menu.main]]
+            name = "Projects"
             weight = 3
-            url = "/pl/projects/"
+            url = "projects/"
 
-            [[languages.pl.menu.main]]
-            name = "Kontakt"
+            [[languages.en.menu.main]]
+            name = "Contact me"
             weight = 5
-            url = "/pl/contact/"
+            url = "contact/"
+
+
+    [languages.pt-br]
+        languagename = "Português"
+        title = "João Ninguém"
+
+        [languages.pt-br.params]
+            author = "João Ninguém"
+            info = "Full Stack DevOps e Mágico"
+            description = "Sítio pessoal de João Ninguém"
+            keywords = "blog,desenvolvedor,pessoal"
+            footercontent = "Coloque algum texto aqui."
+
+        [languages.pt-br.menu]
+
+            [[languages.pt-br.menu.main]]
+            name = "Sobre"
+            weight = 1
+            url = "about/"
+
+            [[languages.pt-br.menu.main]]
+            name = "Blog"
+            weight = 2
+            url = "posts/"
+
+            [[languages.pt-br.menu.main]]
+            name = "Projetos"
+            weight = 3
+            url = "projects/"
+
+            [[languages.pt-br.menu.main]]
+            name = "Contato"
+            weight = 5
+            url = "contact/"
