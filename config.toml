@@ -10,14 +10,14 @@ defaultContentLanguage = "en"
 paginate = 20
 canonifyURLs = true
 
-pygmentsStyle = "pygments"
-pygmentsCodeFences = true
-pygmentsCodeFencesGuessSyntax = true
-
 disqusShortname = "ansonvandoren-com"
 
 [Blackfriday]
     hrefTargetBlank = true
+
+[markup]
+    [markup.highlight]
+        style = "solarized-dark256"
 
 [params]
     author = "Anson VanDoren"
