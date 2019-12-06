@@ -3,13 +3,13 @@ draft = true
 date = 2019-11-30T13:03:03-08:00
 title = "Building a Robinhood app with Go - Part 2"
 description = "Adding login capability to a Go web server"
-tags = ["go", "web", "robinhood", "authentication"]
+tags = ["go", "web", "robinhood"]
 slug = "" 
 categories = []
 externalLink = ""
 +++
 
-# Adding a login feature
+# Adding a login form
 
 For my own use, I want this page to be available publicly so I can access it from anywhere. Obviously, I don't want anyone else to be able to access my portfolio, so I'll need a way to securely login. This involves quite a few moving parts, and has potentially serious security implications; so I'm going to do my best to keep things as safe as possible.
 
@@ -30,6 +30,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"path/filepath"
 )
@@ -51,13 +52,13 @@ func generateTemplates() {
 	// layouts directory contains full pages based on `base` template
 	layouts, err := filepath.Glob(templatesDir + "layouts/*.tmpl")
 	if err != nil {
-		logger.Fatalln(err)
+		log.Fatalln("[ERROR] failed to load layouts folder:", err)
 	}
 
 	// includes are snippets that may be included in one or more layouts
 	includes, err := filepath.Glob(templatesDir + "includes/*.tmpl")
 	if err != nil {
-		logger.Fatalln(err)
+		log.Fatalln("[ERROR] failed to load includes folder:", err)
 	}
 
 	// generate templates for each of the layouts, including their components
@@ -81,10 +82,9 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 	tmpl, ok := templates[name]
 	if !ok {
 		http.Error(w, "oops, something went wrong", http.StatusInternalServerError)
-		return fmt.Errorf("The template '%s' does not exist.", name)
+		return fmt.Errorf("the template '%s' does not exist", name)
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return tmpl.ExecuteTemplate(w, "base", data)
 }
 
@@ -224,7 +224,7 @@ The base template requires a sub-template called "navbar", but I haven't defined
           Home
         </a>
       </li>
-      {{ if not .User }}
+      {{ if not .Name }}
       <li class="nav-item">
         <a class="nav-link" href="/login">Log In</a>
       </li>
@@ -264,7 +264,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Starting Robinhood portfolio app")
+	fmt.Println("[INFO] starting Robinhood portfolio app")
 	// create multiplexer to handle incoming requests
 	mux := http.NewServeMux()
 
@@ -289,14 +289,14 @@ Next we need to execute a new template based on this route by editing `route_mai
 func index(w http.ResponseWriter, r *http.Request) {
 	err := renderTemplate(w, "index.tmpl", nil)
 	if err != nil {
-		logger.Println(err)
+		log.Println("[ERROR] failed to render index:", err)
 	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
 	err := renderTemplate(w, "login.tmpl", nil)
 	if err != nil {
-		logger.Println(err)
+		log.Println("[ERROR] failed to render login:", err)
 	}
 }
 ```
@@ -356,7 +356,7 @@ import (
 	"os"
 )
 
-type Configuration struct {
+type configuration struct {
 	Address   string
 	Static    string
 	Templates struct {
@@ -364,19 +364,19 @@ type Configuration struct {
 	}
 }
 
-var config Configuration
-var logger *log.Logger
+var config configuration
 
 func init() {
 	// create or open log file
 	file, err := os.OpenFile("gorobinhood.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalln("Failed to open log file:", err)
+		log.Fatalln("[ERROR] failed to open log file:", err)
 	}
-
 	// log to both stderr and the file
-	wrt := io.MultiWriter(os.Stderr, file)
-	logger = log.New(wrt, "INFO", log.Ldate|log.Ltime|log.Lshortfile)
+	logWriter := io.MultiWriter(os.Stderr, file)
+	// set up standard logger
+	log.SetOutput(logWriter)
+	log.SetFlags(log.LstdFlags | log.LUTC | log.Lshortfile)
 
 	loadConfig()
 }
@@ -385,22 +385,22 @@ func init() {
 func loadConfig() {
 	file, err := os.Open("config.json")
 	if err != nil {
-		logger.Fatalln("Cannot open config file:", err)
+		log.Fatalln("[ERROR] cannot open config file:", err)
 	}
 	defer file.Close()
 
 	// read configuration in from JSON
 	decoder := json.NewDecoder(file)
-	config = Configuration{}
+	config = configuration{}
 	err = decoder.Decode(&config)
 	if err != nil {
-		log.Fatalln("Cannot get configuration from file:", err)
+		log.Fatalln("[ERROR] cannot get configuration from file:", err)
 	}
-	logger.Println("Configuration loaded")
+	log.Println("[INFO] configuration loaded")
 }
 ```
 
-My new Configuration struct matches the data I just placed in the JSON file, and I'll be able to use it elsewhere in my code. I also created a logger that will both print to stderr and also to a file.
+My new `configuration` struct matches the data I just placed in the JSON file, and I'll be able to use it elsewhere in my code. I also configured the standard logger to both print to stderr and also to a file.
 
 Now that we moved the template path into a configuration value, let's get rid of the hard-coded value in `route_main.go`:
 
@@ -421,7 +421,7 @@ func generateTemplates() {
 	// layouts directory contains full pages based on `base` template
 	layouts, err := filepath.Glob(templatesDir + "layouts/*.tmpl")
 	if err != nil {
-		logger.Fatalln(err)
+		log.Fatalln("[ERROR] failed to load layouts folder:", err)
 	}
 ...
 ```
@@ -431,16 +431,17 @@ func generateTemplates() {
 
 To make use of the rest of the configuration values, I'll go back to `main.go` and make some changes there:
 
-```go {hl_lines=[9,"13-14",22]}
+```go {hl_lines=[10,"14-15",23]}
 // main.go
 package main
 
 import (
+    "log"
 	"net/http"
 )
 
 func main() {
-	logger.Printf("Starting Robinhood portfolio app on: %s\n", config.Address)
+	log.Printf("Starting Robinhood portfolio app on: %s\n", config.Address)
 
 	// create multiplexer to handle incoming requests
 	mux := http.NewServeMux()
@@ -548,12 +549,12 @@ If you restart the server and reload the page, then click the Log In link, you s
 
 {{< figure src="/images/gorobinhood_part_2_login_styling.png#center" >}}
 
-In the [next part](/posts/gorobinhood-part3), I'll set up the backend functionality to actually log in. Before we do that, however, I wanted to show how the template logic in the navbar template works to display either the Log In or Log Out links. As a reminder, the relevant section looked like this:
+In the next part, I'll set up the backend functionality to actually log in. Before we do that, however, I wanted to show how the template logic in the navbar template works to display either the Log In or Log Out links. As a reminder, the relevant section looked like this:
 
 ```go-html-template
 <!-- templates/includes/navbar.tmpl -->
 ...
-      {{ if not .User }}
+      {{ if not .Name }}
       <li class="nav-item">
         <a class="nav-link" href="/login">Log In</a>
       </li>
@@ -571,11 +572,11 @@ As I alluded to earlier in this post, the "dot" in a Go template refers to the d
 // route_main.go
 ...
 type PageData struct {
-	User string
+	Name string
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	err := renderTemplate(w, "index.tmpl", PageData{User: "anson"})
+	err := renderTemplate(w, "index.tmpl", PageData{Name: "anson"})
 	if err != nil {
 		logger.Println(err)
 	}
@@ -583,7 +584,9 @@ func index(w http.ResponseWriter, r *http.Request) {
 ...
 ```
 
-I've created a struct called PageData with a User field. When I render the template, instead of passing nil, I'm passing a PageData struct with my name in this field. Now, when the template looks for `.User`, it will evaluate to "anson" instead of empty like it did previously; this means that the Log Out link will be shown instead.
+I've created a struct called PageData with a User field. When I render the template, instead of passing nil, I'm passing a PageData struct with my name in this field. Now, when the template looks for `.Name`, it will evaluate to "anson" instead of empty like it did previously; this means that the Log Out link will be shown instead.
+
+**Note:** After you've checked out the changes with the PageData struct, revert back to passing in a nil value for template data for now.
 
 We'll get more in depth with this concept in later parts, but I wanted to introduce it now before we got too much further along with template design.
 
