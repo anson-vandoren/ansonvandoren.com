@@ -180,7 +180,9 @@ Nginx Full (v6)            ALLOW       Anywhere (v6)
 ```
 DigitalOcean has a [good primer on ufw](https://www.digitalocean.com/community/tutorials/ufw-essentials-common-firewall-rules-and-commands) if you need more details on configuring a firewall.
 
-_Edit: In the end, I decided to configure Nginx to proxy requests for https://ansonvandoren.com/hooks/ through to my webhooks server instead, and closed port 9000 again. I may write a separate post on that since it wasn't as trivial as I wanted it to be, but the above method works just as well. The basics of what I did were from hints on [this article](https://labs.lacnic.net/a-new-platform-for-lacniclabs/)._
+_Edit 1: In the end, I decided to configure Nginx to proxy requests for https://ansonvandoren.com/hooks/ through to my webhooks server instead, and closed port 9000 again. I may write a separate post on that since it wasn't as trivial as I wanted it to be, but the above method works just as well. The basics of what I did were from hints on [this article](https://labs.lacnic.net/a-new-platform-for-lacniclabs/)._
+
+_Edit 2: I did actually write the subsequent post, and you can read it [here](https://ansonvandoren.com/posts/configuring-nginx-to-proxy-webhooks/)_
 
 ###### Setting up GitHub
 
@@ -393,4 +395,4 @@ Jan 21 00:34:49 ansonvandoren webhook[20422]: [webhook] 2019/01/21 00:34:49 [67d
 
 It worked! Just to make sure (I'm a little paranoid), I rebooted my remote machine, and checked again when it came back up. Everything worked as advertised, and webhook is running again, waiting for my next git commit.
 
-The only thing I still need to set up is the Telegram notifications for build/deploy status. This post is long enough as it is, and that's almost an entirely separate topic, so I'll leave that for (maybe) another post later on.
+The only thing I still need to set up is the Telegram notifications for build/deploy status. This post is long enough as it is, and that's almost an entirely separate topic, so I'll leave that for as separate post that you [can find here](https://ansonvandoren.com/posts/telegram-notification-on-deploy/).
