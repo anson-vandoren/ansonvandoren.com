@@ -223,7 +223,7 @@ commit_message=$1
 pusher_name=$2
 commit_id=$3
 
-# If something goes wrong, put the previous verison back in place
+# If something goes wrong, put the previous version back in place
 function cleanup {
     echo "A problem occurred. Reverting to backup."
     rsync -aqz --del $BACKUP_WWW/ $PUBLIC_WWW
@@ -371,7 +371,7 @@ $ systemctl --user start webhook
 ```
 Everything should be working correctly now, so I ran another empty commit/push from my local machine, and then checked the status of the service:
 ```shell
-blog@ansonvandoren:~$ systemctl --user status webhook
+$ systemctl --user status webhook
 ● webhook.service - Simple Golang webhook server
    Loaded: loaded (/home/blog/.config/systemd/user/webhook.service; enabled; vendor preset: enabled)
    Active: active (running) since Mon 2019-01-21 00:34:03 UTC; 50s ago
