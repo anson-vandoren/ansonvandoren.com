@@ -10,11 +10,12 @@ In my [last post](/posts/deploy-hugo-from-github/), I set up a workflow that all
 
 When I set up my website, I had already used [Let's Encrypt](https://letsencrypt.org/) to enable HTTPS by default. As part of that process, I used the `certbot` tool they provide to automatically modify my Nginx server block configuration, but now I needed to go back and modify them by hand.
 
-### Starting configuration
+## Starting configuration
 
-**Firewall**
+**Firewall status**
 
 At the end of the last post, I had port 9000 open through ufw to enable the webhooks server:
+
 ```shell
 $ sudo ufw status
 Status: active
@@ -29,7 +30,7 @@ Nginx Full (v6)            ALLOW       Anywhere (v6)
 9000 (v6)                  ALLOW       Anywhere (v6)
 ```
 
-**Nginx**
+**Nginx configuration**
 
 My starting Nginx configuration looked like this, based on [these instructions](https://www.digitalocean.com/community/tutorials/how-to-set-up-nginx-server-blocks-virtual-hosts-on-ubuntu-16-04) and what Certbot changed:
 ```shell
@@ -40,11 +41,11 @@ server {
     }
 
     root /var/www/ansonvandoren.com/html;
-    index index.html index.htm index.nging-debian.html;
+    index index.html index.htm index.nginx-debian.html;
     server_name www.ansonvandoren.com ansonvandoren.com;
 
     location / {
-        try_files $uri $uri/ -404;
+        try_files $uri $uri/ =404;
     }
 
     listen [::]:443 ssl ipv6only=on; # managed by Certbot
@@ -87,13 +88,13 @@ My website repo on GitHub had a webhook set up with:
 - Enable SSL verification turned on
 - Triggering event set to 'Just the push event'
 
-### What I wanted instead
+## What I wanted instead
 I had two main things I wanted to accomplish with these changes:
 
 1. Close port 9000 on `ufw`
 2. Change my **Payload URL** on GitHub to use HTTPS (and not require port 9000)
 
-### How I did it
+## How I did it
 In hindsight, this was actually not a difficult problem to solve, but it did take quite a bit of trial and error, and I couldn't find any examples that accomplished exactly what I was looking for.
 
 **Close the firewall port**
@@ -119,10 +120,10 @@ So far, so good...
 
 This took me the most time to sort out, but it's relatively simple.
 ```shell
-sudo vim /etc/nginx/sites-available/ansonvandoren.com
+$ sudo vim /etc/nginx/sites-available/ansonvandoren.com
 ```
 In my first server block (the one listening on 443), I added the highlighted lines below
-{{< highlight shell "hl_lines=11-14" >}}
+```sh {hl_lines=["11-14"]}
 server {
     # Redirect www to non-www. Hugo doesn't like subdomains
     if ($host = www.ansonvandoren.com) {
@@ -130,7 +131,7 @@ server {
     }
 
     root /var/www/ansonvandoren.com/html;
-    index index.html index.htm index.nging-debian.html;
+    index index.html index.htm index.nginx-debian.html;
     server_name www.ansonvandoren.com ansonvandoren.com;
 
     # Forward webhook requests
@@ -139,7 +140,7 @@ server {
     }
 
     location / {
-        try_files $uri $uri/ -404;
+        try_files $uri $uri/ =404;
     }
 
     listen [::]:443 ssl ipv6only=on; # managed by Certbot
@@ -166,7 +167,8 @@ server {
 
     return 404; # managed by Certbot
 }
-{{< / highlight >}}
+```
+
 Simple, right? If any web requests come in over HTTPS on the /hooks path, they get proxied to localhost:9000, which is where the webhooks server is already listening.
 
 **Update GitHub**
