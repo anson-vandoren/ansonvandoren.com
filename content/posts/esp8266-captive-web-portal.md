@@ -94,6 +94,11 @@ def configure_wan():
 configure_wan()
 ```
 
+## The generic Server class
+- SO_REUSEADDR flag: https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ
+
+
+
 ## The DNS Server class
 
 - Open a socket connection
