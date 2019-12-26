@@ -15,14 +15,14 @@ draft: false
 
 **Crafting code is what drives me.**
 
-> I learned QBASIC at age 8. Programming has been my passion ever since.
+> I learned Commodore BASIC at age 8. Programming has been my passion ever since.
 
 ## What I'm Currently Doing
 
-**Director of Total Product Support at Kateeva, Inc.**
+**Director of Systems Engineering at Kateeva, Inc.**
 
-> _I spend most of my time figuring out why extraordinarily complex factory automation tools don't work right, how to fix them, and how to explain that to someone several thousand miles away. In my free time, I train other people to do the same._
+> _I spend most of my time figuring out how to make extraordinarily complex high-volume mass production machines seem simple and easy to their owners. I run a multidisciplinary team that translates business into system requirements, creates the interfaces between sub-systems, owns machine vision and control systems, and drives overall system integration and optimization from concept to installation at a customer site._
 
 **Building tools for automated trading**
 
-> _Because 60 hours a week at a day job isn't enough to keep me entertained, I'm also digging into quantitative finance and learning how to apply that to cryptocurrency trading. Building stuff with Python, pandas, and Binance._
+> _Because a day job isn't enough to keep me entertained, I'm also digging into quantitative finance and learning how to apply that to cryptocurrency trading and traditional equity markets. Building stuff with Python, Binance, Robinhood, and Go._
