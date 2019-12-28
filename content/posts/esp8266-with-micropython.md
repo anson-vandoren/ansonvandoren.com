@@ -4,7 +4,7 @@ date = 2019-06-20T06:55:29-07:00
 title = "Setting up ESP8266 NodeMCU with MicroPython"
 description = "First steps with NodeMCU ESP8266 IoT hardware hacking"
 slug = "" 
-tags = ['ESP8266', 'MicroPython']
+tags = ['ESP8266', 'MicroPython', 'home automation']
 categories = ['Hardware']
 externalLink = ""
 +++
