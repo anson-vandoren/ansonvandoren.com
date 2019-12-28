@@ -495,8 +495,8 @@ In the next part, I'll tackle how to understand DNS questions and generate an an
 
 ----------
 
-Next: [Captive Web Portal for ESP8266 with MicroPython - Part 2](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-1/)
+Next: [Captive Web Portal for ESP8266 with MicroPython - Part 2](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-2/)
 
-Code: https://github.com/anson-vandoren/esp8266-captive-portal
+Code: [GitHub project repo](https://github.com/anson-vandoren/esp8266-captive-portal)
 
-Found a problem with this post? Submit a PR to fix it at https://github.com/anson-vandoren/ansonvandoren.com/blob/master/content/posts/esp8266-captive-web-portal-part-1.md
+Found a problem with this post? Submit a PR to fix it here: [GitHub website repo](https://github.com/anson-vandoren/ansonvandoren.com/blob/master/content/posts/esp8266-captive-web-portal-part-1.md)
