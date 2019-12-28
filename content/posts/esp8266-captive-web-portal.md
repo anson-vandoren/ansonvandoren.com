@@ -12,7 +12,7 @@ series = []
 
 # Project idea
 
-I've worked on a few small projects recently using an ESP8266 chip, and one thing that sort of bothered me is that I needed to hard-code my home WiFI access point SSID and password into either the python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself.
+I've worked on a few small projects recently using an ESP8266 chip, and one thing that sort of bothered me is that I needed to hard-code my home WiFI access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself.
 
 This aim of this project is to program the ESP8266 MCU to:
 - On startup, first check if it knows how to log into my home WiFi.
@@ -73,15 +73,119 @@ gc.collect()
 
 The boot.py file is the first file run each time the board resets. It's not doing much in my case other than a garbage collection, but I'll leave it as is.
 
-The other file that''s run on each boot is called main.py, but it doesn't exist yet. Since this project is intended to just be the bootstrap code for a new device, I don't want to clutter up main.py with the captive portal
+The other file that''s run on each boot is called main.py, but it doesn't exist yet. Since this project is intended to just be the bootstrap code for a new device, I don't want to clutter up main.py with the captive portal code. I'll write most of this code in separate files, and just import and call it from a couple of lines in main.py.
 
-## Basic workflow:
-- Edit on PC
+One other important fact I learned on this project is that since MicroPython needs to import and "compile" (into frozen bytecode) each file in one chunk, raw Python file sizes need to be limited to what's available in RAM on the MCU, minus what the interpreter is using up. In practice, I found this meant that I couldn't import a source file much larger than ~8Kb, and when importing multiple files, I needed to run garbage collection between the imports. If you get (cryptic, seemingly incomplete) errors like the example below, it may mean your file size is too large, and you should break it up into multiple files:
+
+```sh
+>>> import captive_http
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+MemoryError:
+
+>>>
+```
+
+# Getting started
+
+It's possible to use `rshell` to edit files directly (sort of) on the MCU, but I prefer to edit from my host machine and then copy the files in from there during testing. This way I keep the latest updates inside my git repo on my desktop and never need to worry about which is the latest version. My workflow looks something like this:
+
+- Edit files (e.g., main.py) on my host PC
 - `rshell` to MCU, then `cp main.py /pyboard/`
 - On MCU, `repl`, then `import main`
 
-## Notes:
-- Keep file size small to avoid memory problems when importing; split to multiple files
+To start this project off, I'm going to create two files:
+- main.py, which will kick off the code I want to run and otherwise be available for future project code
+- captive_portal.py, which will coordinate the HTTP and DNS servers to make this WiFi bootstrapping code work
+
+```python
+# main.py
+from captive_portal import CaptivePortal
+
+portal = CaptivePortal()
+
+portal.start()
+```
+
+```python
+# captive_portal.py
+import network
+import uerrno
+import uos as os
+import utime as time
+
+class CaptivePortal:
+    CRED_FILE = "./wifi.creds"
+    MAX_CONN_ATTEMPTS = 10
+    
+    def __init__(self):
+        self.sta_if = network.WLAN(network.STA_IF)
+        
+        self.ssid = None
+        self.password = None
+    
+    def connect_to_wifi(self):
+        print(
+            "Trying to connect to SSID '{:s}' with password {:s}".format(
+                self.ssid, self.password
+            )
+        )
+        # initiate the connection
+        self.sta_if.active(True)
+        self.sta_if.connect(self.ssid, self.password)
+        
+        attempts = 0
+        while attempts < self.MAX_CONN_ATTEMPTS:
+            if not self.sta_if.isconnected():
+                print("Connection in progress")
+                time.sleep(2)
+                attempts += 1
+            else:
+                print("Connected to {:s}".format(self.ssid))
+                self.local_ip = self.sta_if.ifconfig()[0]
+                self.write_creds(self.ssid, self.password)
+                return True
+        
+        print("Failed to connect to {:s} with {:s}. WLAN status={:d}".format(
+            self.ssid, self.password, self.sta_if.status()
+        ))
+        # forget the credentials since they didn't work, and turn off station mode
+        self.ssid = self.password = None
+        self.sta_if.active(False)
+        return False
+    
+    def captive_portal(self):
+        print("Starting captive portal")
+    
+    def try_connect_from_file(self):
+        print("Trying to load WiFi credentials from {:s}".format(self.CRED_FILE))
+        try:
+            os.stat(self.CRED_FILE)
+        except OSError as e:
+            if e.args[0] == uerrno.ENOENT:
+                print("{:s} does not exist".format(self.CRED_FILE))
+                return False
+        
+        contents = open(self.CRED_FILE, 'rb').read().split(b',')
+        if len(contents) == 2:
+            self.ssid, self.password = contents
+        else:
+            print("Invalid credentials file:", contents)
+            return False
+        
+        if not self.connect_to_wifi():
+            print("Failed to connect with stored credentials, starting captive portal")
+            os.remove(self.CRED_FILE)
+            return False
+        
+        return True
+
+    def start(self):
+        # turn off station interface to force a reconnect
+        self.sta_if.active(False)
+        if not self.try_connect_from_file():
+            self.captive_portal()
+```
 
 ## Set up WLAN configuration (STA/AP)
 
