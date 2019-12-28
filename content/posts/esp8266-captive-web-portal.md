@@ -107,6 +107,8 @@ portal = CaptivePortal()
 portal.start()
 ```
 
+As you can see, not much going on here other than importing my CaptivePortal class and running its `start()` function. Let's code that up now in a new file:
+
 ```python
 # captive_portal.py
 import network
@@ -154,6 +156,10 @@ class CaptivePortal:
         self.sta_if.active(False)
         return False
     
+    def write_creds(self, ssid, password):
+        open(self.CRED_FILE, 'wb').write(b','.join([ssid, password]))
+        print("Wrote credentials to {:s}".format(self.CRED_FILE))
+    
     def captive_portal(self):
         print("Starting captive portal")
     
@@ -185,6 +191,37 @@ class CaptivePortal:
         self.sta_if.active(False)
         if not self.try_connect_from_file():
             self.captive_portal()
+```
+
+There's a few things that may look strange here if you're coming from CPython ("normal" Python) and haven't used MicroPython before. MicroPython is fairly full-featured, but it is still a subset of CPython, and as such some of the standard library is missing. In most of these cases, I'm importing the "micro" version of the library instead (like `uos` instead of `os` like you would normally). The [PyCopy docs](https://pycopy.readthedocs.io/en/latest/index.html) is really excellent when trying to figure out similarities and differences between the two Python versions and has been a huge help throughout this project.
+
+> _Note: PyCopy is a fork of MicroPython, but the documentation is much better written and more complete_
+
+The class `__init__()` method sets up variables for eventual SSID and password, and also a reference to the MCU's station interface. The station interface is for the MCU to connect to another WiFi hotspot. Later on, we'll also configure the MCU's access point interface.
+
+For now, the `start()` method is just trying to connect to my home WiFi point from previously-saved credentials if it can, and if not, it will (eventually) start the captive portal itself.
+
+The `try_connect_from_file()` method is fairly straightforward:
+- Check if the file exists where we expect WiFi credentials
+- If it does, open it and check that it has two comma separated values
+- If it does, try to connect with those values assuming the first is my home WiFi SSID, and the second is the WiFi password
+- If any step fails, return `False` so that we can start up the captive portal instead to prompt the user to enter these credentials.
+
+`connect_to_wifi()` turns on the station interface and tries to connect with the credentials we have (which don't exist yet, since we didn't read them from the file and haven't prompted the user). It waits up to 20 seconds for the connection to be established before bailing out. If it fails to connect, it will print the interface status, which will be one of the constants listed [here](https://pycopy.readthedocs.io/en/latest/library/network.WLAN.html#network.WLAN.status).
+
+Copy both of these files into the `/pyboard/` folder on the MCU, then start the REPL and import `main`:
+
+```sh
+/pyboard> repl
+Entering REPL. Use Control-X to exit.
+>
+MicroPython v1.12 on 2019-12-20; ESP module with ESP8266
+Type "help()" for more information.
+>>>
+>>> import main
+Trying to load WiFi credentials from ./wifi.creds
+./wifi.creds does not exist
+Starting captive portal
 ```
 
 ## Set up WLAN configuration (STA/AP)
