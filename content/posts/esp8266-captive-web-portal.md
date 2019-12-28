@@ -207,7 +207,7 @@ The `try_connect_from_file()` method is fairly straightforward:
 - If it does, try to connect with those values assuming the first is my home WiFi SSID, and the second is the WiFi password
 - If any step fails, return `False` so that we can start up the captive portal instead to prompt the user to enter these credentials.
 
-`connect_to_wifi()` turns on the station interface and tries to connect with the credentials we have (which don't exist yet, since we didn't read them from the file and haven't prompted the user). It waits up to 20 seconds for the connection to be established before bailing out. If it fails to connect, it will print the interface status, which will be one of the constants listed [here](https://pycopy.readthedocs.io/en/latest/library/network.WLAN.html#network.WLAN.status).
+`connect_to_wifi()` turns on the station interface and tries to connect with the credentials we have (which don't exist yet, since we didn't read them from the file and haven't prompted the user). It waits up to 20 seconds for the connection to be established before bailing out. If it fails to connect, it will print the interface status, which will be one of the constants listed [in the MicroPython `network` documentation](https://pycopy.readthedocs.io/en/latest/library/network.WLAN.html#network.WLAN.status).
 
 Copy both of these files into the `/pyboard/` folder on the MCU, then start the REPL and import `main`:
 
@@ -222,6 +222,182 @@ Type "help()" for more information.
 Trying to load WiFi credentials from ./wifi.creds
 ./wifi.creds does not exist
 Starting captive portal
+```
+
+# Base server class
+
+Since I'll need both a DNS and HTTP server, it makes sense to extract out all the common parts into a superclass. The basic functionality of this class will be to create a socket on a specified port and then register it with a stream poller that will notify the server when a new event occurs on the socket. MicroPython has the [uselect module](https://pycopy.readthedocs.io/en/latest/library/uselect.html)  to help deal with streams like this, which is a subset of CPython `select` module. Using this poller, we can run both the HTTP and DNS servers at the same time without either one blocking waiting to listen to its socket.
+
+Here's the Server class I created in a new file:
+
+```python
+# server.py
+import usocket as socket
+import uselect as select
+
+
+class Server:
+    def __init__(self, poller, port, sock_type, name):
+        self.name = name
+        # create socket with correct type: stream (TCP) or datagram (UDP)
+        self.sock = socket.socket(socket.AF_INET, sock_type)
+
+        # register to get event updates for this socket
+        self.poller = poller
+        self.poller.register(self.sock, select.POLLIN)
+
+        addr = socket.getaddrinfo("0.0.0.0", port)[0][-1]
+        # allow new requests while still sending last response
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(addr)
+
+        print(self.name, "listening on", addr)
+
+    def stop(self, poller):
+        poller.unregister(self.sock)
+        self.sock.close()
+        print(self.name, "stopped")
+```
+
+The HTTP server will use a TCP socket on port 80, while the DNS server will use a UDP socket on port 53. Once the socket is created, I'll register it with a poller passed in from the caller (so I can reuse the same poller) and sign up for the `POLLIN` event, which will notify whenever the socket has new incoming data to read. Even though I didn't register for them in the event bitmask, I'll also potentially get `POLLHUP` (hangup) and `POLLERR` (error) events.
+
+Next I set the socket options to reuse its address. This is mostly only important for the TCP socket since there may still be outgoing data for a recently-closed socket while I want to send new data out on a new connection. For a better in-depth discussion on the `SO_REUSEADDR` flag, here's a great [StackOverflow answer](https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ).
+
+Finally, I bind the new socket to the shortcut address "0.0.0.0" which will listen for all IPv4 addresses on the MCU and the given port. The MicroPython documentation for [usocket](https://pycopy.readthedocs.io/en/latest/library/usocket.html) is helpful in getting this setup correctly.
+
+Other than the constructor, the only method I pulled up into this superclass is one to gracefully halt the server when I'm done by unregistering it from the poller and closing the socket.
+
+# DNS server class
+
+Now that I have the skeleton in place, I'll create a DNS server subclass in a new file called `captive_dns.py`:
+
+```python
+# captive_dns.py
+import usocket as socket
+import gc
+
+from server import Server
+
+class DNSServer(Server):
+    def __init__(self, poller, ip_addr):
+        super().__init__(poller, 53, socket.SOCK_DGRAM, "DNS Server")
+        self.ip_addr = ip_addr
+        self.is_active = True
+
+    def handle(self, sock, event, others):
+        # server doesn't spawn other sockets, so only respond to its own socket
+        if sock is not self.sock:
+            return
+
+        # check the DNS question, and respond with an answer
+        try:
+            data, sender = sock.recvfrom(1024)
+            print("Got data:", data, "from sender:", sender)
+        except Exception as e:
+            print("DNS server exception:", e)
+```
+
+This DNS server doesn't really do much yet. Whenever its `handle()` method is called with a socket, event type, and possibly additional data, it will check to make sure the socket is what it expects, and then try to read in 1024 bytes of data from the socket. Obviously we'll add more here soon, but this should be enough to test the basic functionality.
+
+# Setting up the access point and socket polling
+
+Now, back in the `CaptivePortal` class, I'll add a DNS server and set up an event poller loop to start listening to the socket stream. Before we can do that, though, I need to set up the MCU to turn on its access point interface so it can accept incoming WiFi connections:
+
+```python {hl_lines=[3,7,"11-12","14-18"]}
+# captive_portal.py
+import network
+import ubinascii as binascii
+...
+
+class CaptivePortal:
+    AP_IP = "192.168.4.1"
+    CRED_FILE = "./wifi.creds"
+    MAX_CONN_ATTEMPTS = 10
+
+    def __init__(self, essid=None):
+        self.local_ip = self.AP_IP
+        self.sta_if = network.WLAN(network.STA_IF)
+        self.ap_if = network.WLAN(network.AP_IF)
+        
+        if essid is None:
+            essid = b"ESP8266-%s" % binascii.hexlify(self.ap_if.config("mac")[-3:])
+        self.essid = essid
+        
+        self.ssid = None
+        self.password = None
+    ...
+```
+
+Here, I'm setting up a local IP address that I'll use for the access point (which happens to be the default ESP8266 address, but doesn't need to be), and then getting access to the Access Point interface. I also added a constructor parameter for the access point SSID in case I wanted to name it differently. If I don't pass in a special name, it will use the MCU's MAC address to create a unique SSID for the access point.
+
+Next, I'll create a method to actually turn on and configure the access point interface, and then call that at the start of the `captive_portal()` method:
+
+```python {hl_lines=["5-17", 21]}
+# captive_portal.py
+...
+class CaptivePortal:
+    ...
+    def start_access_point(self):
+        # sometimes need to turn off AP before it will come up properly
+        self.ap_if.active(False)
+        while not self.ap_if.active():
+            print("Waiting for access point to turn on")
+            self.ap_if.active(True)
+            time.sleep(1)
+        # IP address, netmask, gateway, DNS
+        self.ap_if.ifconfig(
+            (self.local_ip, "255.255.255.0", self.local_ip, self.local_ip)
+        )
+        self.ap_if.config(essid=self.essid, authmode=network.AUTH_OPEN)
+        print("AP mode configured:", self.ap_if.ifconfig())
+
+    def captive_portal(self):
+        print("Starting captive portal")
+        self.start_access_point()
+    ...
+```
+
+I ran into issues occasionally where if the AP interface was already turned on when I tried to reconfigure it, it would throw an error or else just never configure itself properly. To get around that, I explicitly restart it every time I want it on, and wait for it to report it's active before proceeding.
+
+The `ifconfig()` function call sets (in order):
+- IP address
+- Netmask
+- Gateway
+- DNS server
+
+The values I'm using for IP address, netmask, and gateway are all the default for the interface, but I'm changing the DNS server to point to the MCU itself, instead of a "real" DNS service so that we can have the MCU respond to all DNS queries for devices that connect to it in order to redirect them how we want.
+
+Lastly, I set the network SSID (the name I'll see when I try to connect from my phone), and set it to an open access point so I don't need to enter a password to connect. Then it's just a matter of calling this function at the beginning of my `captive_portal()` method to kick things off.
+
+```python {hl_lines=[5,8,11,"21-22", "25-27"]}
+# captive_portal.py
+import network
+import uerrno
+import uos as os
+import uselect as select
+import utime as time
+
+from captive_dns import DNSServer
+
+class CaptivePortal:
+    AP_IF = "192.168.4.1"
+    CRED_FILE = "./wifi.creds"
+    MAX_CONN_ATTEMPTS = 10
+
+    def __init__(self):
+        self.local_ip = self.AP_IP
+        self.sta_if = network.WLAN(network.STA_IF)
+        self.ssid = None
+        self.password = None
+        
+        self.dns_server = None
+        self.poller = select.poll()
+
+    def captive_portal(self):
+        if self.dns_server is None:
+            print("Configuring DNS server")
+            self.dns_server = DNSServer(self.poller, self.local_ip)
+        ...
 ```
 
 ## Set up WLAN configuration (STA/AP)
