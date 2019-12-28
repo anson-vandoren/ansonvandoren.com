@@ -68,7 +68,7 @@ Esptool is a utility maintained by Espressif (the company that makes the ESP8266
 
 I wanted to erase the flash memory before writing the MicroPython firmware, but to check everything was communicating correctly first, I ran `esptool.py read_mac` to make sure it could talk to the board over the serial connection. The output looked like this:
 
-```
+```sh
 $ esptool.py read_mac
 esptool.py v2.6
 Found 2 serial ports
@@ -89,7 +89,7 @@ I noted the serial port to use in the next few commands, in this case `/dev/cu.S
 
 Before uploading the new firmware, I erased whatever was already on there using the command below. If you had a different port from the `read_mac` command, use that one instead. 
 
-```
+```sh
 $ esptool.py --port /dev/cu.SLAB_USBtoUART erase_flash
 esptool.py v2.6
 Serial port /dev/cu.SLAB_USBtoUART
@@ -108,7 +108,7 @@ Hard resetting via RTS pin...
 
 Finally, I could write the MicroPython firmware. If the filename if the version you downloaded is different than mine (`esp8266-20190529-v1.11.bin`), use that filename instead. If you have trouble getting this step to work, the MicroPython documentation I linked above has some suggestions for changing baud rate, but I didn't have any problems. It took a minute or so to flash, but kept updating progress so I didn't worry it had frozen.
 
-```
+```sh
 $ esptool.py --port /dev/cu.SLAB_USBtoUART write_flash 0 esp8266-20190529-v1.11.bin
 esptool.py v2.6
 Serial port /dev/cu.SLAB_USBtoUART
@@ -135,7 +135,7 @@ Hard resetting via RTS pin...
 
 The real test of all the above steps is to try to connect to the MCU and access a Python REPL. This can be done with the `screen` utility that comes with Linux and macOS, but I found it to be a pain to use. There are several other possible options, and I chose to use rshell, which is specifically designed to work well with MicroPython. In addition to giving me a REPL, it also gives me filesystem info so I can copy my programs to the MCU when I'm ready. I installed it using `pip install rshell`, then tested the connection:
 
-```
+```sh
 $ rshell --port /dev/cu.SLAB_USBtoUART
 Using buffer-size of 32
 Connecting to /dev/cu.SLAB_USBtoUART (buffer-size 32)...
@@ -150,7 +150,7 @@ Welcome to rshell. Use Control-D (or the exit command) to exit rshell.
 
 This dropped me into a TTY session on the board. Typing `help` will list available commands, which will be familiar to macOS/Linux terminal users. The filesystem setup seemed a bit strange at first, but basically it acts as if you're still at the path you initiated rshell from, but with a root folder `/pyboard` that is the actual NodeMCU fiilesystem root. Here's a quick example:
 
-```
+```sh
 /Users/anson/src/hardware/thermostat/client/sensor> ls
 config.py        main.py          sample_config.py
 /Users/anson/src/hardware/thermostat/client/sensor> cp main.py /pyboard
@@ -162,17 +162,17 @@ The first `ls` command lists the files in the folder on my computer. The `cp` co
 
 Other commands that might be useful are:
 
-- `cat <filename>` will print out the contents of the file
+- `cat filename` will print out the contents of the file
 - `cd` changes directories
 - `exit` which (hopefully as expected) will drop you out of the rshell session and back to your computer.
-- `edit` will use your computer's preferred editor (hopefully vim!) to edit a file, and then save it back to the board.
+- `edit` will use your computer's preferred editor (obviously vim!) to edit a file, and then save it back to the board.
 - `mkdir` makes a directory
 - `repl` gives you a MicroPython interpreter shell
 - `rm` removes a file
 
 Anyway, just to test I can move forward with programming this thing:
 
-```
+```sh
 /Users/anson/src/hardware/thermostat/client> repl
 Entering REPL. Use Control-X to exit.
 >
