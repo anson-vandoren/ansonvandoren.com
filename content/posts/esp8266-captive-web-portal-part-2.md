@@ -232,8 +232,6 @@ class DNSQuery:
 
 Here, I'm passing in an IP address (the MCU's address in this case), and getting back a (hopefully) valid DNS answer pointing all domains to that IP.
 
-Run the code again and make sure everything looks right:
-
 With that in place, it's trivial to have the DNS server send back the answer to each question. Make the following addition to the `DNSServer` class:
 
 ```python {hl_lines=[14,15]}
