@@ -10,8 +10,6 @@ externalLink = ""
 series = []
 +++
 
-# Recap
-
 In [Part 2](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-2/) of this series, I finished implementing the "captive portal" DNS server so that after connecting to my Wemos D1 Mini MCU's WiFi access point, all DNS queries pointed toward the MCU's IP address instead of the actual IP address for the requested domain. I'm implementing this captive portal as a way to be able to configure the MCU to be able to log into my home WiFi without hardcoding the SSID and password, so what I need to do next is set up a HTTP server that will present a form where I can fill out these details.
 
 So far, the `CaptivePortal` class creates the DNS Server and registers its socket with a poller that listens for data on the socket stream. This was fairly straightforward since UDP (which DNS uses) is connectionless, and I didn't need to keep track of whether a connection was fully closed or not. I'll do something similar for the HTTP server, but will need to keep track of which connections are incoming and outgoing, and which are closed. This makes things a little more complicated, but I'll start with my base server superclass, and proceed bit-by-bit from there.
@@ -438,9 +436,9 @@ Since the goal of this project is to let me enter my home WiFi credentials so th
 
 ## Mapping files to HTTP paths
 
-Now that I have a HTML file, I need to tell my server which HTTP paths should serve that file. Let's add a `routes` dictionary to the `HTTPServer` class, and create a method to add new routes:
+Now that I have a HTML file, I need to tell my server which HTTP paths should serve that file. Let's add a `routes` dictionary to the `HTTPServer` class. If I was making a more general-purpose HTTP server, I'd probably want to create a method for adding routes, and let the parent create the routes instead of having the server do it directly. In this case, however, I'll have a very limited number of routes that will never change, so I'm just going to create them through a dictionary literal in the HTTPServer constructor.
 
-```python {hl_lines=[8,"11-14"]}
+```python {hl_lines=[8]}
 # captive_http.py
 ...
 class HTTPServer(Server):
@@ -448,30 +446,7 @@ class HTTPServer(Server):
         ...
         self.request = dict()
         self.conns = dict()
-        self.routes = dict()
-        ...
-    
-    def routefile(self, path, file_name):
-        """set the file to serve for a given HTTP path"""
-
-        self.routes[path.encode()] = file_name.encode()
-```
-
-Now, back in my `CaptivePortal` class, let's specify that all requests for path `/` should serve the `index.html` file.
-
-```python {hl_lines=[11]}
-# captive_portal.py
-...
-class CaptivePortal:
-    ...
-    def captive_portal(self):
-        print("Starting captive portal")
-        self.start_access_point()
-
-        if self.http_server is None:
-            self.http_server = HTTPServer(self.poller, self.local_ip)
-            self.http_server.routefile("/", "./index.html")
-            print("Configured HTTP server")
+        self.routes = {b"/": b"./index.html"}
         ...
 ```
 
@@ -521,33 +496,35 @@ class HTTPServer(Server):
     ...
 ```
 
-Then, I'll create a helper function to take a route and either return either the contents of the HTML file if the route matches, or else an empty byte string. Add the following to `captive_html.py`:
+Then, I'll create a helper function to take the parsed request and either return either the contents of the HTML file if the route matches, or else an empty byte string. Add the following to `captive_html.py`:
 
-```python {hl_lines=["5-14"]}
+```python {hl_lines=["5-16"]}
 # captive_http.py
 ...
 class HTTPServer(Server):
     ...
-    def get_body(self, route_path):
-        """generate a response body given a route"""
+    def get_response(self, req):
+        """generate a response body and headers, given a route"""
 
-        route = self.routes.get(route_path, None)
+        headers = b"HTTP/1.1 200 OK\r\n"
+        route = self.routes.get(req.path, None)
 
         if type(route) is bytes:
             # expect a filename, so return contents of file
-            return open(route, "rb")
+            return open(route, "rb"), headers
 
-        return uio.BytesIO(b"")
+        headers = b"HTTP/1.1 404 Not Found\r\n"
+        return uio.BytesIO(b""), headers
     ...
 ```
 
 If the route is found, I'll get a `bytes` string with the path to the HTML file, and I'll open that file (in binary mode) and return the file stream object.
 
-If the route is not found, I'll get a `None` from the dictionary, and instead I'll return an empty bytes stream object.
+If the route is not found, I'll get a `None` from the dictionary, and instead I'll return an empty bytes stream object. In both cases, I'll return appropriate headers along with the body.
 
 Let's modify the `read()` function to try to get a body depending on the route, and also generate a correct header depending on whether the route was matched or not:
 
-```python {hl_lines=["10-17"]}
+```python {hl_lines=[10]}
 # captive_http.py
 ...
 class HTTPServer(Server):
@@ -557,13 +534,7 @@ class HTTPServer(Server):
         # get the completed request
         req = self.parse_request(self.request.pop(sid))
         
-        body = self.get_body(req.path)
-        if body:
-            # matched a route
-            headers = b"HTTP/1.1 200 OK\r\n"
-        else:
-            # did not match any route
-            headers = b"HTTP/1.1 404 Not Found\r\n"
+        body, headers = self.get_response(req)
 
         self.prepare_write(s, body, headers)
     ...
@@ -585,7 +556,7 @@ Both of these issues can be basically solved in the same way: if the requested h
 
 Let's modify the `HTTPServer.read()` method to check for a valid request. If the requested host matches the MCU's IP address, and the route is known, then serve the page for that route. Otherwise, return a redirect response pointing to the root path of the MCU's IP address.
 
-```python {hl_lines=["10-23"]}
+```python {hl_lines=["10-20"]}
 # captive_http.py
 ...
 class HTTPServer(Server):
@@ -606,8 +577,8 @@ class HTTPServer(Server):
             
         # by this point, we know the request has the correct
         # host and a valid route
-        body = self.get_body(req.path)
-        headers = b"HTTP/1.1 200 OK\r\n"
+        body, headers = self.get_response(req)
+
         self.prepare_write(s, body, headers)
     ...
 ```

@@ -10,8 +10,6 @@ externalLink = ""
 series = []
 +++
 
-# Recap
-
 In [Part 1](https://ansonvandoren.com/posts/esp8266-captive-portal-part-1) of this series, I had set up the beginnings of a "captive portal" DNS server. The intent of this server is to redirect all DNS requests to point to the IP address of the Wemos D1 Mini MCU that's running the WiFi access point. See the intro to that post for why I want to do this.
 
 I'd progressed to the point where I had a working socket that could display the raw datagram coming in over port 53 for DNS queries when I connected my phone to the MCU's AP. Now I need to understand how to interpret those requests, and how to construct a DNS answer I can send back to the client that will redirect them to the IP address I want.
