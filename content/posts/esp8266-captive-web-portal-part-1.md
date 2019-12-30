@@ -13,7 +13,7 @@ series = []
 
 # Project idea
 
-I've worked on a few small projects recently using an ESP8266 SoC, and one thing that sort of bothered me is that I needed to hard-code my home WiFI access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself, and then typing my home WiFi SSID and password into a HTML form.
+I've worked on a few small projects recently using an ESP8266 SoC, and one thing that sort of bothered me is that I needed to hard-code my home WiFi access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself, and then typing my home WiFi SSID and password into a HTML form.
 
 This aim of this project is to program the ESP8266 MCU to:
 - On startup, first check if it already knows how to log into my home WiFi. Once I set up a device, I'd expect it to remember the WiFi credentials I told it even if it was rebooted.
