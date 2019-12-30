@@ -30,6 +30,8 @@ I wrote a previous article on setting up a NodeMCU ESP8266 with MicroPython a fe
 
 The only difference from last time is that I'm using a different board this time, a [Wemos D1 Mini](https://amzn.to/2t5AvWi) I ordered from Amazon. It has the same ESP8266 chipset and mostly the same features, but fewer GPIO pins than the other one. The price is about the same either way, but I was looking for a smaller form factor for my next project, and this is about half the size of the [NodeMCU development board](https://amzn.to/2J9CRrJ).
 
+{{< figure src="/images/wemos-d1-mini.jpg#center" caption="Wemos D1 Mini (ESP-8266EX chipset" >}}
+
 The one additional step I did need to get the D1 Mini to work was to install an additional driver. All of my search results for this ended up with kind of sketchy-looking websites, but I think the "official" version from the board manufacturer is [here](http://www.wch.cn/download/CH341SER_MAC_ZIP.html). There are also links to drivers for Windows and Linux on the same page. Use at your own risk, but at least I can say the drivers from there worked for me on macOS 10.13.6 (High Sierra).
 
 Aside from this, everything was basically the same except that the Wemos D1 Mini shows up on a different serial port, in my case `/dev/cu.wchusbserial1430`. As a reminder, you can check this yourself using the esptool.py tool [from Espressif](https://github.com/espressif/esptool):
