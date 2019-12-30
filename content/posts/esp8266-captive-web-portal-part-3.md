@@ -1,5 +1,5 @@
 +++ 
-draft = true
+draft = false
 date = 2019-12-25T14:47:09-08:00
 title = "Captive Web Portal for ESP8266 with MicroPython - Part 3"
 description = "Easily authenticate to WiFi with home automation devices"
