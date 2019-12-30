@@ -578,3 +578,68 @@ Once the captive portal is running, connect to the MCU's WiFi access point and n
 {{< figure src="/images/esp8266_captive_portal_index_page.png#center" caption="Captive portal login page" >}}
 
 Actually, if you navigate to any HTTP-only site, at the root path, you'll get the same page since our DNS server is telling the client that all domains point to the MCU's IP address. You can test this by navigating to any site that doesn't use HTTPS (try http://neverssl.com to test). This is definitely progress, but still not quite what we want. If (for example), I tried navigating to http://neverssl.com/online, I'd get a `404 Not Found` back from the server instead of it redirecting me to the login page I want. Additionally, it kind of bugs me that the domain I tried navigating to still shows up in the browser address bar instead of the MCU's IP address.
+
+# Redirecting to the captive portal
+
+Both of these issues can be basically solved in the same way: if the requested host or path from the client are not the ones I want to serve, I can send a redirect response back to the client to point them where I want them to go. This response will just be an empty body with a `307 Temporary Redirect` header.
+
+Let's modify the `HTTPServer.read()` method to check for a valid request. If the requested host matches the MCU's IP address, and the route is known, then serve the page for that route. Otherwise, return a redirect response pointing to the root path of the MCU's IP address.
+
+```python {hl_lines=["10-23"]}
+# captive_http.py
+...
+class HTTPServer(Server):
+    ...
+    def read(self, s):
+        ...
+        # get the completed request
+        req = self.parse_request(self.request.pop(sid))
+        
+        if not self.is_valid_req(req):
+            headers = (
+                b"HTTP/1.1 307 Temporary Redirect\r\n"
+                b"Location: http://{:s}/\r\n".format(self.local_ip)
+            )
+            body = uio.BytesIO(b"")
+            self.prepare_write(s, body, headers)
+            return
+            
+        # by this point, we know the request has the correct
+        # host and a valid route
+        body = self.get_body(req.path)
+        headers = b"HTTP/1.1 200 OK\r\n"
+        self.prepare_write(s, body, headers)
+    ...
+```
+
+Then we can write the `is_valid_req()` method like this:
+
+```python {hl_lines=["5-10"]}
+# captive_http.py
+...
+class HTTPServer(Server):
+    ...
+    def is_valid_req(self, req):
+        if req.host != self.local_ip:
+            # force a redirect to the MCU's IP address
+            return False
+        # redirect if we don't have a route for the requested path
+        return req.path in self.routes
+    ...
+```
+
+Go ahead and test that out. Any non-HTTPS domain you try, with any path, should redirect you back to `http://192.168.4.1`, which matches the route for the index page with the login form.
+
+# Recap
+
+We've made progress, but still don't have a functioning product yet. The D1 Mini has a functioning DNS server to point all domain requests to the local IP address, and a HTTP server that will redirect all unknown hosts and paths to the root path of the local IP address, which will now serve a form asking for the WiFI SSID and password where we want the D1 Mini to connect in the future.
+
+All that's left is to actually parse the form submission, have the D1 Mini try to connect to the new WiFi, and then let the user know if it was successful. This is stretching into a longer writeup than I was anticipating, but I didn't want to skimp too much on the details, or make any post too long to comfortably follow. 
+
+---------------------
+
+Next: [Captive Web Portal for ESP8266 with MicroPython - Part 4](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-4/)
+
+Code: [GitHub project repo](https://github.com/anson-vandoren/esp8266-captive-portal)
+
+Found a problem with this post? Submit a PR to fix it here: [GitHub website repo](https://github.com/anson-vandoren/ansonvandoren.com/blob/master/content/posts/esp8266-captive-web-portal-part-3.md)
