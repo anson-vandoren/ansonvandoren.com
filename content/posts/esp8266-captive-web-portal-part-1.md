@@ -5,6 +5,7 @@ title = "Captive Web Portal for ESP8266 with MicroPython - Part 1"
 description = "Easily authenticate to WiFi with home automation devices"
 slug = "" 
 tags = ["ESP8266", "MicroPython", "DNS", "home automation", "sockets"]
+images = ["/images/wemos-d1-mini.jpg"]
 categories = []
 externalLink = ""
 series = []
