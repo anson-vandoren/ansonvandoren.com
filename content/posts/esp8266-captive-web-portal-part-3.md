@@ -77,7 +77,7 @@ Once I have the newly-spawned socket, I set it to non-blocking and reusable (lik
 
 At this point, the server socket goes back to listening for new incoming connections, and the newly-created client socket will do the work of reading in the request and writing out a response.
 
-```python
+```python {hl_lines=[3,4,"8-19"]}
 # captive_http.py
 ...
 import uerrno
@@ -97,6 +97,7 @@ class HTTPServer(Server):
         client_sock.setblocking(False)
         client_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.poller.register(client_sock, select.POLLIN)
+    ...
 ```
 
 ## Reading from a client socket
@@ -111,7 +112,7 @@ Here, we're going to cheat a little bit since we only need to handle GET request
 
 If we did find a blank line at the end, get the full request and print it out so we can take a look. The client will be expecting a message back, so for now let's just queue up a `404 Not Found` message to get them off our backs until we can code up a way to send real HTML.
 
-```python
+```python {hl_lines=[3,"7-34"]}
 # captive_http.py
 ...
 import uio
@@ -146,6 +147,7 @@ class HTTPServer(Server):
         headers = b"HTTP/1.1 404 Not Found\r\n"
         body = uio.BytesIO(b"")
         self.prepare_write(s, body, headers)
+    ...
 ```
 
 ## Sending to a client socket
@@ -158,7 +160,7 @@ With all that in place, I'm adding an extra newline to the headers to get a blan
 
 Lastly, I let the poller know that I'm prepared to write out to the socket, so it can let me know when the socket is available for outgoing data. This means I'll start getting `POLLOUT` events for this socket, which I'll need to handle to actually start writing this data.
 
-```python
+```python {hl_lines=[3,4,"8-24"]}
 # captive_http.py
 ...
 from collections import namedtuple
@@ -183,6 +185,7 @@ class HTTPServer(Server):
         self.conns[id(s)] = c
         # let the poller know we want to know when it's OK to write
         self.poller.modify(s, select.POLLOUT)
+    ...
 ```
 
 Now that the poller is set to pass `POLLOUT` events to this client socket, we need to handle those events, which will trigger a call to our new `write_to()` method. First, we need to get the writer connection back, which will have everything we need to determine which bytes need to be written out. Remember that the `write_range` value of this tuple is a list of start and end positions of the buffer that we should write. If the buffer is full, this would normally be `[0, 536]`, and we'd write the entire contents of the buffer. If the buffer is only partially full, the second value in the list would be something less than 536. If we got interrupted while writing last time, the first value may be something higher than 0, and we'e start writing from that position instead.
@@ -191,7 +194,7 @@ After writing out to the socket, we check how much was written. If we didn't wri
 
 Otherwise, we wrote all the bytes in the buffer, so we need to keep the socket open, advance the buffer to the next bytes of the response body so that when the next `POLLOUT` event comes in, we'll be prepared to continue writing, which we do in the `buff_advance()` method.
 
-```python
+```python {hl_lines=["5-37"]}
 # captive_http.py
 ...
 class HTTPServer(Server):
@@ -229,6 +232,7 @@ class HTTPServer(Server):
             # didn't read in all the bytes that were in the memoryview
             # so just set next write start to where we ended the write
             c.write_range[0] += bytes_written
+    ...
 ```
 
 ## Closing a client socket
@@ -237,7 +241,7 @@ There were a few cases above where we needed to close a client socket, either be
 
 To cleanly close a client socket, we also need to unregister it from the poller, and delete any remaining request or connection data we had stored for it. Since we have very limited RAM on the ESP8266, we do this manually and then call the garbage collector to make sure we're conserving every single byte of RAM as early as possible to avoid memory errors.
 
-```python
+```python {hl_lines=[3,"7-17"]}
 # captive_http.py
 ...
 import gc
@@ -255,6 +259,7 @@ class HTTPServer(Server):
         if sid in self.conns:
             del self.conns[sid]
         gc.collect()
+    ...
 ```
 
 # Adding the HTTP server to our CaptivePortal class
@@ -343,4 +348,233 @@ This looks good. We can see that the DNS server is redirecting all domains to th
 
 # Setting up routes and serving actual responses
 
-So far, we're responding to all requests with a `404 Not Found` header and an empty body. Obviously we're going to need to send real responses to make this work, but we'll need a framework to decide which content to send.
+So far, we're responding to all requests with a `404 Not Found` header and an empty body. Obviously we're going to need to send real responses to make this work. There's two things we need to get started with this:
+
+1. Some actual content in the form of HTML files
+2. A way to examine the request, get the path requested, and map that to a specific HTML file we've created.
+
+## Captive portal landing HTML page
+
+Since the goal of this project is to let me enter my home WiFi credentials so the MCU can connect to it, I'll need a simple HTML page with a form on it where I can enter those details. I created a file called `index.html` with a basic form and a bit of inline styling. Since this is an extremely simple page on a very basic server, I'm OK with using inline CSS instead of a separate file to make serving things simpler for me.
+
+```html
+<!-- index.html -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WiFi Login</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #3498db;
+        width: 100%;
+        text-align: center;
+        margin: 20px 0px 20px 0px;
+      }
+      p {
+        font-size: 12px;
+        text-decoration: none;
+        color: #fff;
+      }
+      h1 {
+        font-size: 1.5em;
+        color: #525252;
+      }
+      .box {
+        background: white;
+        width: 50%;
+        border-radius: 6px;
+        margin: 0 auto 0 auto;
+        padding: 10px 0px 10px 0px;
+      }
+      input[type='text'],
+      input[type='password'] {
+        background: #ecf0f1;
+        border: #ccc 1px solid;
+        border-bottom: #ccc 2px solid;
+        padding: 8px;
+        width: 60%;
+        color: #aaa;
+        margin-top: 10px;
+        font-size: 1em;
+        border-radius: 4px;
+      }
+      .btn {
+        background: #2ecc71;
+        width: 40ch;
+        padding-top: 5px;
+        padding-bottom: 5px;
+        color: white;
+        border-radius: 4px;
+        border: #27ae60 1px solid;
+        margin: 20 auto;
+        font-weight: 800;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body>
+    <form action="/login" method="get" class="box">
+      <h1>WiFi login credentials</h1>
+      <input type="text" placeholder="My WiFi SSID" name="ssid" required />
+
+      <br />
+
+      <input
+        type="password"
+        placeholder="WiFi Password"
+        name="password"
+        required
+      />
+
+      <br />
+
+      <button type="submit" class="btn">Connect</button>
+    </form>
+  </body>
+</html>
+```
+
+## Mapping files to HTTP paths
+
+Now that I have a HTML file, I need to tell my server which HTTP paths should serve that file. Let's add a `routes` dictionary to the `HTTPServer` class, and create a method to add new routes:
+
+```python {hl_lines=[8,"11-14"]}
+# captive_http.py
+...
+class HTTPServer(Server):
+    def __init__(self, poller, local_ip):
+        ...
+        self.request = dict()
+        self.conns = dict()
+        self.routes = dict()
+        ...
+    
+    def routefile(self, path, file_name):
+        """set the file to serve for a given HTTP path"""
+
+        self.routes[path.encode()] = file_name.encode()
+```
+
+Now, back in my `CaptivePortal` class, let's specify that all requests for path `/` should serve the `index.html` file.
+
+```python {hl_lines=[11]}
+# captive_portal.py
+...
+class CaptivePortal:
+    ...
+    def captive_portal(self):
+        print("Starting captive portal")
+        self.start_access_point()
+
+        if self.http_server is None:
+            self.http_server = HTTPServer(self.poller, self.local_ip)
+            self.http_server.routefile("/", "./index.html")
+            print("Configured HTTP server")
+        ...
+```
+
+## HTTP routing based on requested path
+
+Now that we have a file created, and know what route should serve that file, we just need to examine each incoming request to see what path is being requested, and respond appropriately.
+
+First, let's parse the HTTP request and pull out the details we may be interested in:
+
+```python {hl_lines=[3,"8-26",31]}
+# captive_http.py
+...
+ReqInfo = namedtuple("ReqInfo", ["type", "path", "params", "host"])
+...
+
+class HTTPServer(Server):
+    ...
+    def parse_request(self, req):
+        """parse a raw HTTP request to get items of interest"""
+
+        req_lines = req.split(b"\r\n")
+        req_type, full_path, http_ver = req_lines[0].split(b" ")
+        path = full_path.split(b"?")
+        base_path = path[0]
+        query = path[1] if len(path) > 1 else None
+        query_params = (
+            {
+                key: val
+                for key, val in [param.split(b"=") for param in query.split(b"&")]
+            }
+            if query
+            else {}
+        )
+        host = [line.split(b": ")[1] for line in req_lines if b"Host:" in line][0]
+        
+        return ReqInfo(req_type, base_path, query_params, host)
+
+    def read(self, s):
+        ...
+        # get the completed request
+        req = self.parse_request(self.request.pop(sid))
+
+        # send a 404 response for now
+        headers = b"HTTP/1.1 404 Not Found\r\n"
+        body = uio.BytesIO(b"")
+        self.prepare_write(s, body, headers)
+    ...
+```
+
+Then, I'll create a helper function to take a route and either return either the contents of the HTML file if the route matches, or else an empty byte string. Add the following to `captive_html.py`:
+
+```python {hl_lines=["5-14"]}
+# captive_http.py
+...
+class HTTPServer(Server):
+    ...
+    def get_body(self, route_path):
+        """generate a response body given a route"""
+
+        route = self.routes.get(route_path, None)
+
+        if type(route) is bytes:
+            # expect a filename, so return contents of file
+            return open(route, "rb")
+
+        return uio.BytesIO(b"")
+    ...
+```
+
+If the route is found, I'll get a `bytes` string with the path to the HTML file, and I'll open that file (in binary mode) and return the file stream object.
+
+If the route is not found, I'll get a `None` from the dictionary, and instead I'll return an empty bytes stream object.
+
+Let's modify the `read()` function to try to get a body depending on the route, and also generate a correct header depending on whether the route was matched or not:
+
+```python {hl_lines=["10-17"]}
+# captive_http.py
+...
+class HTTPServer(Server):
+    ...
+    def read(self, s):
+        ...
+        # get the completed request
+        req = self.parse_request(self.request.pop(sid))
+        
+        body = self.get_body(req.path)
+        if body:
+            # matched a route
+            headers = b"HTTP/1.1 200 OK\r\n"
+        else:
+            # did not match any route
+            headers = b"HTTP/1.1 404 Not Found\r\n"
+
+        self.prepare_write(s, body, headers)
+    ...
+```
+
+Time to test it out. Copy all the new/changed files over to the MCU, and fire it up.
+
+> **Note:** don't forget to copy your new `index.html` file onto the MCU as well, along with the `.py` files. Place the HTML files in the same folder (`/pyboard`) as the others.
+
+Once the captive portal is running, connect to the MCU's WiFi access point and navigate to `http://192.168.4.1/`
+
+{{< figure src="/images/esp8266_captive_portal_index_page.png#center" caption="Captive portal login page" >}}
+
+Actually, if you navigate to any HTTP-only site, at the root path, you'll get the same page since our DNS server is telling the client that all domains point to the MCU's IP address. You can test this by navigating to any site that doesn't use HTTPS (try http://neverssl.com to test). This is definitely progress, but still not quite what we want. If (for example), I tried navigating to http://neverssl.com/online, I'd get a `404 Not Found` back from the server instead of it redirecting me to the login page I want. Additionally, it kind of bugs me that the domain I tried navigating to still shows up in the browser address bar instead of the MCU's IP address.
