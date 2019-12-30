@@ -1,5 +1,5 @@
 +++ 
-draft = true
+draft = false
 date = 2019-12-21T17:11:02-08:00
 title = "Captive Web Portal for ESP8266 with MicroPython - Part 1"
 description = "Easily authenticate to WiFi with home automation devices"
@@ -12,27 +12,32 @@ series = []
 
 # Project idea
 
-I've worked on a few small projects recently using an ESP8266 chip, and one thing that sort of bothered me is that I needed to hard-code my home WiFI access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself.
+I've worked on a few small projects recently using an ESP8266 SoC, and one thing that sort of bothered me is that I needed to hard-code my home WiFI access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself, and then typing my home WiFi SSID and password into a HTML form.
 
 This aim of this project is to program the ESP8266 MCU to:
-- On startup, first check if it knows how to log into my home WiFi.
+- On startup, first check if it already knows how to log into my home WiFi. Once I set up a device, I'd expect it to remember the WiFi credentials I told it even if it was rebooted.
 - If it doesn't have any known credentials, or the previously saved credentials don't work, then start an unsecured WiFi access point on bootup instead.
 - With my phone, connect to the MCU WiFi AP, and then enter the SSID and password for my actual home WiFI.
 - The MCU then tries to connect to my home WiFi using the newly provided credentials, and display a basic status page showing what network it connected to, and what is its IP address on my home network.
 
 This idea isn't really new, and it's referred to as a "captive portal" in other contexts. It's something you may have seen when logging into public WiFi at your favorite coffee shop, where you're redirected to a sign-in page before being allowed online. There's a few different ways to accomplish that, but the way I'm going to do it will require a HTTP server (to serve some HTML to ask for WiFi SSID and password), and also a DNS server to redirect all DNS questions to the IP address of the MCU so that I don't need to know the board's IP address. I'll be able to just connect to the board's access point, and then navigate to any (non-HTTPS) website, and it will redirect me to the login page I want.
 
-The non-HTTPS part is important; for the sake of simplicity, the HTTP server is only listening on port 80, and not 443. HTTPS requests will still get redirected to the board, but there isn't a HTTPS socket listening for them there, so they'll time out. I may add this capability eventually, but it's a little complicated to get set up and probably not worth the effort. For my Android phone (and I think for iOS devices as well), the OS detects that it doesn't have internet access and will automatically ask me to sign in anyway, which goes over HTTP and does the redirection I need.
+The non-HTTPS part is important; for the sake of simplicity, the HTTP server is only listening on port 80, and not 443. HTTPS requests will still get redirected to the board, but there isn't a HTTPS socket listening for them there, so they'll time out. It's possible to add HTTPS redirection like this, but there's a few problems:
+
+- Many browsers will display an warning, or refuse to show the page, if a HTTPS site is redirected. This is obviously good for security, but makes it a pain for this particular use-case.
+- I would need to set up SSL certificates, start a third socket server on the MCU, and be able to handle TLS/SSL connections, which is more involved than plain HTTP. I _think_ the ESP8266 is probably capable of this, but it's a tiny device with limited resources available, and this would be way overkill for what I actually need.
+
+For my Android phone (and I think for iOS devices as well), the OS detects that it doesn't have internet access and will automatically ask me to sign in anyway, which goes over HTTP and does the redirection I need. If this doesn't work, I could just intentionally navigate to a site that I know uses HTTP only (like http://example.com or http://neverssl.com) to trigger the redirection.
 
 # Basic hardware setup
 
-I wrote a previous article on setting up a NodeMCU ESP8266 with MicroPython a few months ago, so instead of repeating all the instructions here you can check out that article instead. I'll assume that you can already `rshell` into your MCU for the rest of this post.
+I wrote a [previous article](https://ansonvandoren.com/posts/esp8266-with-micropython/) on setting up a NodeMCU ESP8266 with MicroPython a few months ago, so instead of repeating all the instructions here you can check out that article instead. I'll assume that you can already `rshell` into your MCU for the rest of this post.
 
 The only difference from last time is that I'm using a different board this time, a [Wemos D1 Mini](https://amzn.to/2t5AvWi) I ordered from Amazon. It has the same ESP8266 chipset and mostly the same features, but fewer GPIO pins than the other one. The price is about the same either way, but I was looking for a smaller form factor for my next project, and this is about half the size of the [NodeMCU development board](https://amzn.to/2J9CRrJ).
 
 {{< figure src="/images/wemos-d1-mini.jpg#center" caption="Wemos D1 Mini (ESP-8266EX chipset" >}}
 
-The one additional step I did need to get the D1 Mini to work was to install an additional driver. All of my search results for this ended up with kind of sketchy-looking websites, but I think the "official" version from the board manufacturer is [here](http://www.wch.cn/download/CH341SER_MAC_ZIP.html). There are also links to drivers for Windows and Linux on the same page. Use at your own risk, but at least I can say the drivers from there worked for me on macOS 10.13.6 (High Sierra).
+The one additional step I did need to get the D1 Mini to work was to install an additional driver. All of my search results for this ended up with kind of sketchy-looking websites, but I think the ["official" driver](http://www.wch.cn/download/CH341SER_MAC_ZIP.html) from the manufacturer should be safe. The link above is for the macOS version of the driver, but there's also drivers for [Windows](http://www.wch.cn/downloads/CH341SER_ZIP.html) and [Linux](http://www.wch.cn/downloads/CH341SER_LINUX_ZIP.html) on the same site. 
 
 Aside from this, everything was basically the same except that the Wemos D1 Mini shows up on a different serial port, in my case `/dev/cu.wchusbserial1430`. As a reminder, you can check this yourself using the esptool.py tool [from Espressif](https://github.com/espressif/esptool):
 
@@ -75,9 +80,9 @@ gc.collect()
 
 The boot.py file is the first file run each time the board resets. It's not doing much in my case other than a garbage collection, but I'll leave it as is.
 
-The other file that''s run on each boot is called main.py, but it doesn't exist yet. Since this project is intended to just be the bootstrap code for a new device, I don't want to clutter up main.py with the captive portal code. I'll write most of this code in separate files, and just import and call it from a couple of lines in main.py.
+The other file that's run on each boot is called main.py, but it doesn't exist yet. Since this project is intended to just be the bootstrap code for a new device, I don't want to clutter up main.py with the captive portal code. I'll write most of this code in separate files, and just import and call it from a couple of lines in main.py.
 
-One other important fact I learned on this project is that since MicroPython needs to import and "compile" (into frozen bytecode) each file in one chunk, raw Python file sizes need to be limited to what's available in RAM on the MCU, minus what the interpreter is using up. In practice, I found this meant that I couldn't import a source file much larger than ~8Kb, and when importing multiple files, I needed to run garbage collection between the imports. If you get (cryptic, seemingly incomplete) errors like the example below, it may mean your file size is too large, and you should break it up into multiple files:
+One other important fact I learned on this project is that since MicroPython needs to import and "compile" (into frozen bytecode) each file in one chunk, the raw Python file sizes need to be limited to what's available in RAM on the MCU, minus what the interpreter is using up. In practice, I found this meant that I couldn't import a source file much larger than ~8Kb. In some cases (for this and other projects in MicroPython), I've needed to run garbage collection between imports as well. The [documentation](https://pycopy.readthedocs.io/en/latest/reference/constrained.html#control-of-garbage-collection) talks a bit about it if you want more details. If you get (cryptic, seemingly incomplete) errors like the example below, it may mean your file size is too large, and you should break it up into multiple files:
 
 ```sh
 >>> import captive_http
@@ -94,12 +99,14 @@ It's possible to use `rshell` to edit files directly (sort of) on the MCU, but I
 
 - Edit files (e.g., main.py) on my host PC
 - `rshell` to MCU, then `cp main.py /pyboard/`
-- On MCU, `repl`, then `import main`
+- On the MCU, start the `repl` and then `import main`
 
 To start this project off, I'm going to create two files:
-- main.py, which will kick off the code I want to run and otherwise be available for future project code
-- captive_portal.py, which will coordinate the HTTP and DNS servers to make this WiFi bootstrapping code work
+- `main.py`, which will kick off the code I want to run and otherwise be available for future project code.
+- `captive_portal.py,` which will coordinate the HTTP and DNS servers to make this WiFi bootstrapping code work.
 
+
+I'll start with `main.py` since it's only a couple of lines:
 ```python
 # main.py
 from captive_portal import CaptivePortal
@@ -109,7 +116,7 @@ portal = CaptivePortal()
 portal.start()
 ```
 
-As you can see, not much going on here other than importing my CaptivePortal class and running its `start()` function. Let's code that up now in a new file:
+As you can see, not much going on here other than importing my CaptivePortal class and running its `start()` function. I'll write that class and method in a new file like this:
 
 ```python
 # captive_portal.py
@@ -127,7 +134,13 @@ class CaptivePortal:
         
         self.ssid = None
         self.password = None
-    
+
+    def start(self):
+        # turn off station interface to force a reconnect
+        self.sta_if.active(False)
+        if not self.try_connect_from_file():
+            self.captive_portal()
+
     def connect_to_wifi(self):
         print(
             "Trying to connect to SSID '{:s}' with password {:s}".format(
@@ -182,22 +195,16 @@ class CaptivePortal:
             return False
         
         if not self.connect_to_wifi():
-            print("Failed to connect with stored credentials, starting captive portal")
+            print("Connect with saved credentials failed, starting captive portal")
             os.remove(self.CRED_FILE)
             return False
         
         return True
-
-    def start(self):
-        # turn off station interface to force a reconnect
-        self.sta_if.active(False)
-        if not self.try_connect_from_file():
-            self.captive_portal()
 ```
 
-There's a few things that may look strange here if you're coming from CPython ("normal" Python) and haven't used MicroPython before. MicroPython is fairly full-featured, but it is still a subset of CPython, and as such some of the standard library is missing. In most of these cases, I'm importing the "micro" version of the library instead (like `uos` instead of `os` like you would normally). The [PyCopy docs](https://pycopy.readthedocs.io/en/latest/index.html) is really excellent when trying to figure out similarities and differences between the two Python versions and has been a huge help throughout this project.
+There's a few things that may look strange here if you're coming from CPython ("normal" Python) and haven't used MicroPython before. MicroPython is fairly full-featured, but it is still only a subset of CPython, and as such some of the standard library is missing. In most of these cases, I'm importing the "micro" version of the library instead (like `uos` instead of `os`). The [PyCopy docs](https://pycopy.readthedocs.io/en/latest/index.html) are really excellent when trying to figure out similarities and differences between the two Python versions and has been a huge help throughout this project.
 
-> _Note: PyCopy is a fork of MicroPython, but the documentation is much better written and more complete_
+> _Note: PyCopy is a fork of MicroPython, but the documentation is much better written and more complete. Generally they are feature equivalent, so I tend to use the docs from PyCopy instead._
 
 The class `__init__()` method sets up variables for eventual SSID and password, and also a reference to the MCU's station interface. The station interface is for the MCU to connect to another WiFi hotspot. Later on, we'll also configure the MCU's access point interface.
 
@@ -211,7 +218,7 @@ The `try_connect_from_file()` method is fairly straightforward:
 
 `connect_to_wifi()` turns on the station interface and tries to connect with the credentials we have (which don't exist yet, since we didn't read them from the file and haven't prompted the user). It waits up to 20 seconds for the connection to be established before bailing out. If it fails to connect, it will print the interface status, which will be one of the constants listed [in the MicroPython `network` documentation](https://pycopy.readthedocs.io/en/latest/library/network.WLAN.html#network.WLAN.status).
 
-Copy both of these files into the `/pyboard/` folder on the MCU, then start the REPL and import `main`:
+Copy both of these files into the `/pyboard/` folder on the MCU, then run `repl` and import `main`:
 
 ```sh
 /pyboard> repl
@@ -228,7 +235,7 @@ Starting captive portal
 
 # Base server class
 
-Since I'll need both a DNS and HTTP server, it makes sense to extract out all the common parts into a superclass. The basic functionality of this class will be to create a socket on a specified port and then register it with a stream poller that will notify the server when a new event occurs on the socket. MicroPython has the [uselect module](https://pycopy.readthedocs.io/en/latest/library/uselect.html)  to help deal with streams like this, which is a subset of CPython `select` module. Using this poller, we can run both the HTTP and DNS servers at the same time without either one blocking waiting to listen to its socket.
+Since I'll need both a DNS and HTTP server, it makes sense to extract out any common parts into a superclass. The basic functionality of this class will be to create a socket on a specified port and then register it with a stream poller that will notify the server when a new event occurs on the socket. MicroPython has the [uselect module](https://pycopy.readthedocs.io/en/latest/library/uselect.html)  to help deal with streams like this, which is a subset of CPython `select` module. Using this poller, we can run both the HTTP and DNS servers at the same time without either one blocking waiting to listen to its socket.
 
 Here's the Server class I created in a new file:
 
@@ -284,7 +291,6 @@ class DNSServer(Server):
     def __init__(self, poller, ip_addr):
         super().__init__(poller, 53, socket.SOCK_DGRAM, "DNS Server")
         self.ip_addr = ip_addr
-        self.is_active = True
 
     def handle(self, sock, event, others):
         # server doesn't spawn other sockets, so only respond to its own socket
@@ -303,7 +309,7 @@ This DNS server doesn't really do much yet. Whenever its `handle()` method is ca
 
 # Setting up the access point
 
-Now, back in the `CaptivePortal` class, I'll add a DNS server and set up an event poller loop to start listening to the socket stream. Before we can do that, though, I need to set up the MCU to turn on its access point interface so it can accept incoming WiFi connections:
+Now, back in the `CaptivePortal` class, I'll instantiate a DNS server and set up an event poller loop to start listening to the socket stream. Before we can do that, though, I need to set up the MCU to turn on its access point interface so it can accept incoming WiFi connections:
 
 ```python {hl_lines=[3,7,"11-12","14-18"]}
 # captive_portal.py
@@ -452,9 +458,9 @@ class CaptivePortal:
     ...
 ```
 
-Here I'm using the `uselect` module to create a `Poll` class. When I instantiate the DNSServer class, it registers its socket with the poller, and any events on that socket stream will show up as a response that I can iterate through. I'm calling the `ipoll` method with a timeout of 1000msec, and if there's any event, I see if the DNSServer wants to handle it.
+Here I'm using the `uselect` module to create a `Poll` object. When I instantiate the DNSServer class, it registers its socket with the poller, and any events on that socket stream will show up as a response that I can iterate through. I'm calling the `ipoll` method with a timeout of 1000msec, and if there's any event, I check whether the DNSServer wants to handle it.
 
-Since UDP is a connectionless protocol (and possibly due to a bug in the ESP8266 port of MicroPython), I found I kept getting POLLHUP (stream hang-up) events, which I didn't care about. I ignore those for now, and otherwise send the event to the DNSServer to handle itself.
+Since UDP is a connectionless protocol (and possibly due to a bug in the ESP8266 port of MicroPython), I found I was getting dozens of `POLLHUP` (stream hang-up) events per second after the first, which are useless to me in this application. I ignore those for now, and otherwise send the event to the DNSServer to handle itself.
 
 To test it all out, I saved, copied, and ran from REPL again. After I connected my phone to the access point, I can see some DNS requests coming in. After confirming it worked, I used `Ctrl-C` to exit, and verified the cleanup code was also called.
 

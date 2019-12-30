@@ -12,7 +12,7 @@ series = []
 
 In [Part 2](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-2/) of this series, I finished implementing the "captive portal" DNS server so that after connecting to my Wemos D1 Mini MCU's WiFi access point, all DNS queries pointed toward the MCU's IP address instead of the actual IP address for the requested domain. I'm implementing this captive portal as a way to be able to configure the MCU to be able to log into my home WiFi without hardcoding the SSID and password, so what I need to do next is set up a HTTP server that will present a form where I can fill out these details.
 
-So far, the `CaptivePortal` class creates the DNS Server and registers its socket with a poller that listens for data on the socket stream. This was fairly straightforward since UDP (which DNS uses) is connectionless, and I didn't need to keep track of whether a connection was fully closed or not. I'll do something similar for the HTTP server, but will need to keep track of which connections are incoming and outgoing, and which are closed. This makes things a little more complicated, but I'll start with my base server superclass, and proceed bit-by-bit from there.
+So far, the `CaptivePortal` class creates the DNS Server and registers its socket with a poller that listens for data on the socket stream. This was fairly straightforward since UDP (which DNS uses) is connectionless, and I didn't need to keep track of whether a connection was fully closed or not. I'll do something similar for the HTTP server, but will need to keep track of which connections are incoming and outgoing, and which are closed. This makes things a little more complicated, but I'll start with my base server class, and proceed step by step from there.
 
 # Basic HTTP server with sockets
 
@@ -56,9 +56,10 @@ class HTTPServer(Server):
 
 Here's the basis for how the HTTP server will look. It has a `handle()` method just like the DNS server did, but in this case we need to consider three different cases:
 
-1. The client wants to initiate a new request from the HTTP server. In this case the event will come in over the original socket, on port 80. I'll handle this in the `accept()` method by spawning off a new socket to handle that particular request/response.
-2. An existing connection (on a spawned socket) has sent us more data. This is signified by a `POLLIN` event on the spawned socket, calls the `read()` method to read in the data from the socket until we get to the end of the full message.
-3. An existing connection (on a spawned socket) is ready for us to send more data to the client. This is signified with a `POLLOUT` event on the spawned socket, and I'll handle it in the `write_to()` method by sending the next set of data for that connection.
+1. The client wants to initiate a new request from the HTTP server. In this case the event will come in over the original "server" socket, on port 80. I'll handle this in the `accept()` method by spawning off a new "client" socket to handle that particular request/response. 
+  > _Note: "client socket" in this case refers to a socket belonging to the server, but which is spawned to handle a specific client request. By contrast, the "server socket" in this discussion is only responsible for accepting new connections and creating a "client socket" for them, but doesn't itself respond to any request._
+1. An existing connection (on a client socket) has sent us more data. This is signified by a `POLLIN` event on the client socket, and calls the `read()` method to read in the data from the socket until we get to the end of the full message.
+2. An existing connection (on a client socket) is ready for us to send more data to the client. This is signified with a `POLLOUT` event on the client socket, and I'll handle it in the `write_to()` method by sending the next set of data for that connection.
 
 One point to keep in mind here is that regardless of the actual size of the incoming or outgoing messages, we'll only be sending segments of 536 bytes at a time; this is the default [maximum segment size](https://en.wikipedia.org/wiki/Maximum_segment_size) for TCP/IP.
 
@@ -67,11 +68,9 @@ One point to keep in mind here is that regardless of the actual size of the inco
 
 ## Accepting a new socket connection
 
-Let's start with the easiest case: accepting a new connection. Here, we already know what socket to expect the connection request on, since it's the same socket we created at initialization (referred to as the "server socket"). The `socket.accept()` method will spawn off a new socket (the "client socket") to use for this connection and return the new client socket as well as the destination address it's paired to.
+Let's start with the easiest case: accepting a new connection. Here, we already know what socket to expect the connection request on, since it's the same socket we created at initialization ("server socket"). The `socket.accept()` method will spawn off a new socket (the "client socket") to use for this connection and return the new client socket as well as the destination address to which it's paired.
 
-Later on in the project, our server will be connecting to my home WiFi and closing down its own access point. In that case, the MCU's IP address will change, but it may have already sent out a redirect to the client for the new IP address. The client will think it should open a new connection, but our server is still holding onto some data in the previously-opened socket. To avoid an error message telling me the socket is already open in this case, I'm catching the exception here and returning early since I'll be able to reuse the previous socket in that case.
-
-Once I have the newly-spawned socket, I set it to non-blocking and reusable (like the server socket), and then add it to the list of open streams on which poller will listen for events.
+Once I have the new client socket, I set it to non-blocking and reusable (like the server socket), and then add it to the list of open streams on which poller will listen for events.
 
 At this point, the server socket goes back to listening for new incoming connections, and the newly-created client socket will do the work of reading in the request and writing out a response.
 
@@ -104,7 +103,7 @@ Once we're spawned off a client socket for an incoming connection request, and s
 
 Calling the incoming socket's `read()` method gives us some amount of data, but we don't know upfront whether it's the full message or a partial message. If there's no data, it's a good sign that we already hit the end of the message, and we should just close the socket now.
 
-Otherwise, let's check if we're already partway through an incoming message for this client socket. If we are, add the new data to the existing partial message, otherwise create an empty byte string and append the data.
+Otherwise, let's check if we're already partway through an incoming message for this client socket. If we are, add the new data to the existing partial message, otherwise create an empty bytestring and append the data.
 
 Here, we're going to cheat a little bit since we only need to handle GET requests, and we can assume that any blank line signifies the end of the message. If the last four bytes of the incoming data is not `\r\n\r\n`, we expect there's more to come, so return early and wait for the next `POLLIN` event.
 
@@ -150,11 +149,18 @@ class HTTPServer(Server):
 
 ## Sending to a client socket
 
-Now all that's left to complete the HTTP transaction is to write a response back to the client. Remember that we're limited to writing 536 bytes at a time, but our response may be longer than that. In the previous section, after reading in the request, we called `prepare_write()` with the headers and body we wanted to send back to the client. We'll need a way to keep track of how much data we've written out to for each response, and where we should start writing next time the same socket is ready to accept more.
+Now all that's left to complete the HTTP transaction is to write a response back to the client. Remember that we're limited to writing 536 bytes at a time, but our response may be longer than that. In the previous section, after reading in the request, we called `prepare_write()` with the headers and body we wanted to send back to the client. We'll need a way to keep track of how much data we've written out for each response, and where we should start writing next time the same socket is ready to accept more of our response.
 
-To help keep track of all that, I made a `namedtuple` for the writer connection that contains the full response body we need to send, a buffer that will contain only the next 536 (maximum) bytes we plan to send, a memoryview of the buffer to help with writing in and out of the buffer without needless copying, and a range for starting and ending bytes of the buffer that we want to send next. Notice that I'm not keeping a copy of the headers, since they'll always (in our case) be less than 536 bytes and will always go out with the first message segment.
+To help keep track of all that, I made a `namedtuple` for the writer connection that contains:
 
-With all that in place, I'm adding an extra newline to the headers to get a blank line (required between headers and body), and then writing the headers into the buffer (padded to make the buffer size 536 bytes). Then I use the memoryview to read from the body into the buffer, up to a maximum total of 536 bytes in the buffer. The `readinto()` call tells me how many bytes were actually read from body into the buffer, and I use that number to set my starting `write_range`. I save the `WriteConn` information into the `self.conns` dictionary with a key of the socket's ID in memory so I can look it up later if I need to write the remainder of the message.
+- The full response body we need to send
+- A buffer that will contain only the next 536 (maximum) bytes we plan to send
+- A memoryview of the buffer to help with writing in and out of the buffer without needless copying
+- A range for starting and ending bytes of the buffer that we want to send next.
+
+Notice that I'm not keeping a copy of the headers, since they'll always (in our case) be less than 536 bytes and will always go out with the first message segment.
+
+With all that in place, I'm adding an extra newline to the headers to get a blank line (required between headers and body), and then writing the headers into the buffer (padded to make the buffer size 536 bytes). Then I use the memoryview to read from the body into the buffer, up to a maximum total of 536 bytes in the buffer. The `readinto()` call tells me how many bytes were actually read from body into the buffer, and I use that number to set the end point of the `write_range`. I save the `WriteConn` information into the `self.conns` dictionary with a key of the socket's ID so I can look it up later when I need to write the remainder of the message.
 
 Lastly, I let the poller know that I'm prepared to write out to the socket, so it can let me know when the socket is available for outgoing data. This means I'll start getting `POLLOUT` events for this socket, which I'll need to handle to actually start writing this data.
 
@@ -186,11 +192,15 @@ class HTTPServer(Server):
     ...
 ```
 
-Now that the poller is set to pass `POLLOUT` events to this client socket, we need to handle those events, which will trigger a call to our new `write_to()` method. First, we need to get the writer connection back, which will have everything we need to determine which bytes need to be written out. Remember that the `write_range` value of this tuple is a list of start and end positions of the buffer that we should write. If the buffer is full, this would normally be `[0, 536]`, and we'd write the entire contents of the buffer. If the buffer is only partially full, the second value in the list would be something less than 536. If we got interrupted while writing last time, the first value may be something higher than 0, and we'e start writing from that position instead.
+Now that the poller is set to pass `POLLOUT` events to this client socket, we need to handle those events, which will trigger a call to our new `write_to()` method. First, we need to get the writer connection back, which will have everything we need to determine which bytes should be written out. Remember that the `write_range` value of this tuple is a list of start and end positions of the buffer that we should write:
+
+- If the buffer is full, this would normally be `[0, 536]`, and we'd write the entire contents of the buffer.
+- If the buffer is only partially full, the second value in the list would be something less than 536.
+- If we got interrupted while writing last time, the first value may be something higher than 0, and we'e start writing from that position instead of 0.
 
 After writing out to the socket, we check how much was written. If we didn't write any bytes, or we had less than 536 bytes to write, we're done sending this response, and we can close the socket.
 
-Otherwise, we wrote all the bytes in the buffer, so we need to keep the socket open, advance the buffer to the next bytes of the response body so that when the next `POLLOUT` event comes in, we'll be prepared to continue writing, which we do in the `buff_advance()` method.
+Otherwise, we wrote all the bytes in the buffer, so we need to keep the socket open, advance the buffer to the next bytes of the response body so that when the next `POLLOUT` event comes in, we'll be prepared to continue writing; this part happens in the `buff_advance()` method.
 
 ```python {hl_lines=["5-37"]}
 # captive_http.py
@@ -310,7 +320,7 @@ class CaptivePortal:
     ...
 ```
 
-Time to test it out. Copy the code to the MCU and start it up by importing `main` from the REPL. Connect to the MCU's access point with your phone, and then open a browser and try to navigate to a **non-HTTPS** page.
+Time to test it out. Copy the code to the MCU and start it up. Connect to the MCU's access point with your phone, and then open a browser and try to navigate to a **non-HTTPS** page (http://neverssl.com, http://example.com, for example).
 
 ```sh
 Entering REPL. Use Control-X to exit.
@@ -348,8 +358,8 @@ This looks good. We can see that the DNS server is redirecting all domains to th
 
 So far, we're responding to all requests with a `404 Not Found` header and an empty body. Obviously we're going to need to send real responses to make this work. There's two things we need to get started with this:
 
-1. Some actual content in the form of HTML files
-2. A way to examine the request, get the path requested, and map that to a specific HTML file we've created.
+1. Some actual content in the form of HTML files.
+2. A way to examine the request, get the path requested, and map that to a specific HTML file.
 
 ## Captive portal landing HTML page
 
@@ -603,7 +613,7 @@ Go ahead and test that out. Any non-HTTPS domain you try, with any path, should 
 
 # Recap
 
-We've made progress, but still don't have a functioning product yet. The D1 Mini has a functioning DNS server to point all domain requests to the local IP address, and a HTTP server that will redirect all unknown hosts and paths to the root path of the local IP address, which will now serve a form asking for the WiFI SSID and password where we want the D1 Mini to connect in the future.
+We've made progress, but still don't have a functioning product yet. The D1 Mini has a working DNS server to point all domain requests to the local IP address, and a HTTP server that will redirect all unknown hosts and paths to the root path of the local IP address, which will now serve a form asking for the WiFI SSID and password where we want the D1 Mini to connect in the future.
 
 All that's left is to actually parse the form submission, have the D1 Mini try to connect to the new WiFi, and then let the user know if it was successful. This is stretching into a longer writeup than I was anticipating, but I didn't want to skimp too much on the details, or make any post too long to comfortably follow. 
 

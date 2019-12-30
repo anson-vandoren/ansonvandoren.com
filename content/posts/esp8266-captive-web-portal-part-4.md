@@ -16,9 +16,9 @@ All HTTP requests from any client connected to the D1 Mini's WiFi AP are redirec
 
 # Parsing the form submission
 
-I implemented the HTML form action as a GET request instead of POST. This is really the wrong way to do it, but since this is a very small, special-purpose web server, I didn't see any reason to go to the trouble of parsing POST requests as well. So the new WiFi SSID and password will come in as query parameters in a GET request to the `/login` path.
+I implemented the HTML form action as a GET request instead of POST. This is really the "wrong" way to do it, but since this is a very small, special-purpose web server, I didn't see any reason to go to the trouble of parsing POST requests as well. So the new WiFi SSID and password will come in as query parameters in a GET request to the `/login` path.
 
-The way I chose to do this is to implement the `/login` route as a function instead of a static file. When that route is requested, the function will try to get the SSID and password from the query parameters and save them. Since we also have the opportunity to modify the headers, I'll send a redirect back to the `/` path for now.
+The way I chose to do this is to implement the `/login` route as a function instead of a static file. When that route is requested, the function will try to get the SSID and password from the query parameters and save them. Since we also have the opportunity to modify the headers, I'll send a redirect back to the `/` path for now. Later in this post, we'll have the HTTP server monitor whether we're connected to my home WiFi or not, and if we are, then it will start serving a different page at the `/` route instead of the no-longer-needed login form.
 
 First, let's modify the `get_body()` function so that it knows how to handle a route that's a function instead of a bytestring pointing to a static file.
 
@@ -84,7 +84,7 @@ Turning our attention back to the event loop in the `CaptivePortal` class, we ne
 
 I'll add a method that tries to connect to my home WiFi with the provided credentials, if we're not already connected.
 
-```python {hl_lines=["5-16"]}
+```python {hl_lines=["5-17"]}
 # captive_portal.py
 ...
 class CaptivePortal:
@@ -97,6 +97,7 @@ class CaptivePortal:
                 return self.connect_to_wifi()
             # not connected, and no credentials to connect yet
             return False
+        return False
     
     def has_creds(self):
         self.ssid, self.password = self.http_server.saved_credentials
@@ -284,6 +285,7 @@ class CaptivePortal:
             if remaining <= 0:
                 self.ap_if.active(False)
                 print("Turned off access point")
+        return False
     ...
 ```
 

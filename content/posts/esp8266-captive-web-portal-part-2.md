@@ -37,13 +37,13 @@ The message header is 12 bytes long; in this example the header is:
 - The second two bytes (16 bits) are the Flags section:
   - In this example, the Flags are `\x01\x00`, or in binary `0000000100000000`
   - See Wikipedia article linked above for a full explanation of what each bit means.
-  - In this case, the binary representation if these two bytes (big-endian) means all header flags are set to 0 except for the `RD` bit, or "Recursion Desired".
+  - In this case, the binary representation of these two bytes (in [big-endian](https://en.wikipedia.org/wiki/Endianness) ("network byte") format) means all header flags are set to 0 except for the `RD` bit, or "Recursion Desired".
   - Cloudflare has a [good article](https://www.cloudflare.com/learning/dns/what-is-recursive-dns/) explaining recursive vs. iterative DNS requests if you're interested. For our part, we don't really care about this since we're only redirecting all DNS requests to our captive portal anyway.
 - The rest of the header (`\x00\x01\x00\x00\x00\x00\x00\x00`) gives the number of questions, answers, authority records, and additional records in the message. I'll ignore them for my purposes, and assume the client is only sending one question (which is true in this case).
 
 ## Request Question
 
-The question section has a variable length for the first part (`QNAME`) and a fixed two bytes for each of the remaining two parts (`QTYPE` and `QCLASS`). All I really care about for my purposes is the `QNAME`, which is the domain the client wants an IP address for. This section is composed of one or more "labels" where the first byte tells how many bytes the label is, and the rest of the label is part of the domain being queried.
+The question section has a variable length for the first part (`QNAME`) and a fixed two bytes for each of the remaining two parts (`QTYPE` and `QCLASS`). All I really care about for this project is the `QNAME`, which is the domain the client wants an IP address for, as I'll need that to construct the answer response. This section contains one or more "labels" where the first byte tells how many bytes the full label is, and the rest of the label is part of the domain being queried.
 
 In this example:
 - First byte tells how long the upcoming label is (`\x03` for the first label)
@@ -54,7 +54,7 @@ In this example:
 This `QNAME` fully resolves to `ssl.gstatic.com`, after which there is a zero-byte (`\x00`) telling me the `QNAME` section is done.
 
 - The next byte pair is `QTYPE`, which in this case is `\x00\x01` for an A record. [This Wikipedia article](https://en.wikipedia.org/wiki/List_of_DNS_record_types) lists other possible options for record types.
-- The final octet pair is `QCLASS`, which in this case is `\x00\x01` for internet (IN)
+- The final byte pair is `QCLASS`, which in this case is `\x00\x01` for internet (IN).
 
 # Parsing a DNS question
 
@@ -192,7 +192,7 @@ Answer: `\x00\x01\x00\x01\xc0\x0c\x00\x01\x00\x01\x00<\x00\x04\xc0\xa8\x04\x01`
 
 Now that we know the format of a response, let's update our `DNSQuery` class to generate one when asked:
 
-```python
+```python {hl_lines=["5-32"]}
 # captive_dns.py
 ...
 class DNSQuery:
