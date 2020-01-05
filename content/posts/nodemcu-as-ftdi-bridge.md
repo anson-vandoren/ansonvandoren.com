@@ -46,3 +46,69 @@ The only slight problem is that there's no connector built into the board, but t
 ![Soldered connector backside](/images/sonoff-basic-r2-connector-soldered.jpg)
 
 ![Soldered connector backside](/images/sonoff-basic-r2-connector-soldered-front.jpg)
+
+# Connecting to the ESP8266 chip
+
+Now that I have the connection points in place, all I need is something to hook it up to my computer. The ESP8266 communicates over a serial port connection through the TX/RX pins. The easiest way to make this connection is using a USB-to-TTL serial converter, and you can find these for a few bucks on [Banggood](https://www.banggood.com/Geekcreit-FT232RL-FTDI-USB-To-TTL-Serial-Converter-Adapter-Module-For-p-917226.html?rmmds=search&cur_warehouse=CN) ([referral link](https://www.banggood.com/index.php?zf=43506250)) or [Amazon](https://amzn.to/35sNe2C). I ordered one from Amazon, but immediately realized that I didn't want to wait the couple of days until it got here, so I started looking for other ways to make the connection.
+
+I have a handful of other ESP8266 development boards laying around from other projects, and those do have a micro-USB connection built into the board. Since the actual ESP8266 chip on those dev boards is also using the same TTL serial connection, it stands to reason those boards must have a built-in converter somewhere. I just needed to figure out how to use it to feed the communication signal through to my Sonoff chip.
+
+It took a while to find a Google query that actually pointed to some helpful links, and even then I didn't find exactly what I was looking for, hence this post for future searchers (maybe future me).
+
+# Serial TTL bridging with NodeMCU ESP8266
+
+It's actually pretty simple to get the NodeMCU to work as a bridge, and the real key is to draw the Enable pin (labeled "EN" on the board) to ground. This will keep the NodeMCU chip from turning on, and then it's just a matter of passing the TX/RX/3V3/GND pins through to the Sonoff chip.
+
+Here's my quick breadboard wiring:
+
+- NodeMCU GND -> NodeMCU EN
+- NodeMCU 3V3 -> Sonoff 3V3
+- NodeMCU GND -> Sonoff GND
+- NodeMCU TX -> Sonoff TX
+- NodeMCU RX -> Sonoff RX
+
+**Note:** the RX/TX pins are "backwards" compared to other guides that assume you're using a FTDI converter. In _those_ cases, RX on the programmer go to TX on the Sonoff, and TX to RX. In my case, however, I'm using TX/RX as straight passthrough pins, so it's TX->TX and RX->RX.
+
+To make the connections, I'm just using simple Dupont/jumper wires between the NodeMCU and the Sonoff board. Make sure you check the pinout on both sides, since the ordering is slightly different between the two.
+
+![Pinout on NodeMCU](/images/sonoff-basic-r2-nodemcu-jumpers.jpg)
+
+![Pinout on Sonoff](/images/sonoff-basic-r2-jumpers.jpg)
+
+# Preparing your computer
+
+If you're working on a Linux machine, you shouldn't need any additional drivers. If you're on Windows or macOS, though, you may need drivers to talk to (through) the NodeMCU board. The board I'm using as the bridge is [this one](https://amzn.to/36tSrbV) from Amazon, which uses the CP2102 chipset, and you can find the drivers on the [Silicon Labs website](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers).
+
+I'll also use the [esptool.py](https://github.com/espressif/esptool) utility from Espressif for communicating with the ESP8266 ROM bootloader on the Sonoff chip. With Python already installed on your system, this is as easy as 
+
+```sh
+$ pip install esptool
+```
+
+# Connecting to the Sonoff Basic R2
+
+When powered up, the Sonoff Basic normally comes up in "run mode", and you won't have access to the flash memory. To get around this, you'll need to have the button held down on the Sonoff when you power it up via the 3.3VDC through the bridge.
+
+With the jumper wire connections all made, but before plugging the NodeMCU into USB on your computer, hold down the button on the Sonoff. With the button still held down, connect your computer to the NodeMCU. You should not see any LEDs blink on _either_ the NodeMCU or the Sonoff. If the NodeMCU LED flashes, it means it wasn't properly disabled. Check the connection between EN and GND on the NodeMCU. If the LED on the Sonoff flashes, it means you didn't have the button held down while you powered it up. Unplug the USB from the NodeMCU, hold down the Sonoff button, and connect again.
+
+> **Note:** if you're using Windows _and_ WSL to connect with `esptool.py`, make sure you're using WSL1 and not WSL2, since (as of early 2020) WSL2 does not support USB serial ports. See [this GitHub issue](https://github.com/microsoft/WSL/issues/4322) for details. Windows CMD or PowerShell will work, and WSL1 will work.
+
+Once you have everything connected up, try running the command below and check the output.
+
+```sh
+$ esptool.py read_mac
+esptool.py v2.8
+Found 1 serial port
+Serial port /dev/ttyS5
+Connecting....
+Detecting chip type... ESP8266
+Chip is ESP8285
+Features: WiFi, Embedded Flash
+Crystal is 26MHz
+MAC: d8:f1:5b:c6:f8:31
+Uploading stub...
+Running stub...
+Stub running...
+MAC: d8:f1:5b:c6:f8:31
+Hard resetting via RTS pin...
+```
