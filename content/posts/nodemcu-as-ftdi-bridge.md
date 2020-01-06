@@ -1,10 +1,10 @@
 +++ 
-draft = true
+draft = false
 date = 2020-01-04T21:21:04-08:00
-title = "Using a NodeMCU ESP8266 as a passthrough FTDI chip"
+title = "Using a NodeMCU ESP8266 as a passthrough serial converter chip"
 description = "Hacking a Sonoff Basic (v2) switch"
 slug = "" 
-tags = []
+tags = ["esp8266", "FTDI", "UART", "NodeMCU"]
 categories = []
 externalLink = ""
 series = []
@@ -37,7 +37,7 @@ In order to upload some new firmware to this thing, I'm going to need to access 
 
 ![Sonoff Basic R2 pinout](/images/sonoff-basic-r2-pinout.jpg)
 
-The only slight problem is that there's no connector built into the board, but that's easily solved by soldering in a 4-pin (0.1 inch, standard breadboard spacing) connector. I didn't have a 4-pin connector handy, so I broke down an 8-pin that came with a previous Wemos D1 Mini development board:
+The only slight problem is that there's no connector built into the board, but that's easily solved by soldering in a 4-pin (0.1 inch, standard breadboard spacing) header. I didn't have a 4-pin header handy, so I broke down an 8-pin that came with a previous Wemos D1 Mini development board:
 
 ![Modified 4-pin connector](/images/4-pin-connector.jpg)
 
@@ -67,13 +67,13 @@ Here's my quick breadboard wiring:
 - NodeMCU TX -> Sonoff TX
 - NodeMCU RX -> Sonoff RX
 
-**Note:** the RX/TX pins are "backwards" compared to other guides that assume you're using a FTDI converter. In _those_ cases, RX on the programmer go to TX on the Sonoff, and TX to RX. In my case, however, I'm using TX/RX as straight passthrough pins, so it's TX->TX and RX->RX.
+**Note:** the RX/TX pins are "backwards" compared to other guides that assume you're using a FTDI-type converter. In _those_ cases, RX on the programmer go to TX on the Sonoff, and TX to RX. In my case, however, I'm using TX/RX as straight passthrough pins, so it's TX->TX and RX->RX.
 
 To make the connections, I'm just using simple Dupont/jumper wires between the NodeMCU and the Sonoff board. Make sure you check the pinout on both sides, since the ordering is slightly different between the two.
 
-![Pinout on NodeMCU](/images/sonoff-basic-r2-nodemcu-jumpers.jpg)
+![Pinout on NodeMCU](/images/sonoff-basic-r2-nodemcu-jumpers.jpg#center)
 
-![Pinout on Sonoff](/images/sonoff-basic-r2-jumpers.jpg)
+![Pinout on Sonoff](/images/sonoff-basic-r2-jumpers.jpg#center)
 
 # Preparing your computer
 
@@ -93,12 +93,15 @@ With the jumper wire connections all made, but before plugging the NodeMCU into 
 
 > **Note:** if you're using Windows _and_ WSL to connect with `esptool.py`, make sure you're using WSL1 and not WSL2, since (as of early 2020) WSL2 does not support USB serial ports. See [this GitHub issue](https://github.com/microsoft/WSL/issues/4322) for details. Windows CMD or PowerShell will work, and WSL1 will work.
 
+# Copy Sonoff flash to computer
+
+If everything above worked, I'll be able to copy the as-shipped firmware from the Sonoff to my PC. I want to keep a copy of this in case I decide to revert later on.
+
 Once you have everything connected up, try running the command below and check the output.
 
 ```sh
-$ esptool.py read_mac
+$ esptool.py flash_id
 esptool.py v2.8
-Found 1 serial port
 Serial port /dev/ttyS5
 Connecting....
 Detecting chip type... ESP8266
@@ -109,6 +112,96 @@ MAC: d8:f1:5b:c6:f8:31
 Uploading stub...
 Running stub...
 Stub running...
-MAC: d8:f1:5b:c6:f8:31
+Manufacturer: 51
+Device: 4014
+Detected flash size: 1MB
 Hard resetting via RTS pin...
 ```
+
+This command reads the flash manufacturer and device ID, and (importantly) tells me what size the flash is.
+
+> **Note:** most of the `esptool.py` commands will reset the board at the end. Since we're not holding down the Sonoff button during this, the board will not come back up in flash mode. This means after each command, I'll need to unplug the USB, hold down the Sonoff button, and plug the USB in again. It's possible that the serial port number will change each time I do this as well.
+
+To copy the as-shipped firmware binary, I'll use the `read_flash` command.
+
+> **Note:** the second hexadecimal parameter below (`0x100000` in my case) relates to the size of the onboard flash. Mine is 1MB, so I use `0x100000` if you have a 4MB flash instead, you would use `0x400000` instead. The first hex parameter is the starting byte to read, and the second is the ending byte to read, hence 0x100000 (hex) is 1048576 bytes (decimal).
+
+```sh
+$ esptool.py --port /dev/ttyS5 read_flash 0x00000 0x100000 image1M.bin
+esptool.py v2.8
+Serial port /dev/ttyS5
+Connecting....
+Detecting chip type... ESP8266
+Chip is ESP8285
+Features: WiFi, Embedded Flash
+Crystal is 26MHz
+MAC: d8:f1:5b:c6:f8:31
+Uploading stub...
+Running stub...
+Stub running...
+1048576 (100 %)
+1048576 (100 %)
+Read 1048576 bytes at 0x0 in 95.9 seconds (87.5 kbit/s)...
+Hard resetting via RTS pin...
+```
+
+The file will be in my current directory now, named `image1M.bin`. I have a few of these Sonoff devices, and I'm not sure the firmware is interchangeable, even between identical models, so I'm going to save each one with a separate filename.
+
+# Restoring from a firmware backup
+
+I'm not going to get into the custom code I want to write in this post, but I will point out how to erase and reflash the backup firmware:
+
+## Erase flash
+
+> Don't forget to reboot the Sonoff with the button held down first.
+
+```sh
+# esptool.py --port /dev/ttyS5 erase_flash
+esptool.py v2.8
+Serial port /dev/ttyS5
+Connecting....
+Detecting chip type... ESP8266
+Chip is ESP8285
+Features: WiFi, Embedded Flash
+Crystal is 26MHz
+MAC: d8:f1:5b:c6:f8:31
+Uploading stub...
+Running stub...
+Stub running...
+Erasing flash (this may take a while)...
+Chip erase completed successfully in 3.5s
+Hard resetting via RTS pin...
+```
+
+## Upload flash
+
+> Don't forget to reboot the Sonoff with the button held down first.
+
+Assuming you're in a directory that has the `image1M.bin` (or whatever you named it) inside:
+
+```sh
+$ esptool.py --port /dev/ttyS5 write_flash -fs 1MB -fm dout 0x0 image1M.bin
+esptool.py v2.8
+Serial port /dev/ttyS5
+Connecting....
+Detecting chip type... ESP8266
+Chip is ESP8285
+Features: WiFi, Embedded Flash
+Crystal is 26MHz
+MAC: d8:f1:5b:c6:f8:31
+Uploading stub...
+Running stub...
+Stub running...
+Configuring flash size...
+Compressed 1048576 bytes to 316863...
+Wrote 1048576 bytes (316863 compressed) at 0x00000000 in 28.1 seconds (effective 298.6 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...
+```
+
+Notes:
+- Change `-fs 1MB` to the size of your actual image
+- Change `image1M.bin` to the name of the binary you want to restore from
+- Check what flash mode you need for your particular board, using the [Espressif documentation](https://github.com/espressif/esptool/wiki/SPI-Flash-Modes) as reference. `dout` was correct for the Sonoff Basic R2, but yours may be different.
