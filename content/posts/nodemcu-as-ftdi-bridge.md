@@ -5,6 +5,7 @@ title = "Using a NodeMCU ESP8266 as a passthrough serial converter chip"
 description = "Hacking a Sonoff Basic (v2) switch"
 slug = "" 
 tags = ["esp8266", "FTDI", "UART", "NodeMCU"]
+images = ["/images/sonoff-basic-r2-jumpers.jpg"]
 categories = []
 externalLink = ""
 series = []
