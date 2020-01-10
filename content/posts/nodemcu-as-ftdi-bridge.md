@@ -16,6 +16,7 @@ I recently purchased a few [Sonoff Basic R2](https://amzn.to/2MU73tm) smart swit
 So instead what I'll be doing is replacing the Sonoff firmware on the switch with something custom, and writing my own code to control the switch. My idea is to get the switch talking over MQTT to a Raspberry Pi, which in turn will interface with Google Home.
 
 A few other benefits to this method (aside from lots of learning):
+
 - The switch won't need to "phone home" to some random server controlled by some random company, passing along who-knows-what information, potentially including my home WiFi SSID and password.
 - The switch should keep operating even if Sonoff ever decides to deprecate their app/servers.
 - I don't need _yet another_ smart-home app on my phone, and particularly not one that demands a lot of [unnecessary permissions](https://www.iot-tests.org/2018/06/sonoff-basic-wifi/#attachment_866)
@@ -50,7 +51,7 @@ The only slight problem is that there's no connector built into the board, but t
 
 # Connecting to the ESP8266 chip
 
-Now that I have the connection points in place, all I need is something to hook it up to my computer. The ESP8266 communicates over a serial port connection through the TX/RX pins. The easiest way to make this connection is using a USB-to-TTL serial converter, and you can find these for a few bucks on [Banggood](https://www.banggood.com/Geekcreit-FT232RL-FTDI-USB-To-TTL-Serial-Converter-Adapter-Module-For-p-917226.html?rmmds=search&cur_warehouse=CN) ([referral link](https://www.banggood.com/index.php?zf=43506250)) or [Amazon](https://amzn.to/35sNe2C). I ordered one from Amazon, but immediately realized that I didn't want to wait the couple of days until it got here, so I started looking for other ways to make the connection.
+Now that I have the connection points in place, all I need is something to hook it up to my computer. The ESP8266 communicates over a serial port connection through the TX/RX pins. The easiest way to make this connection is using a USB-to-TTL serial converter, and you can find these for a few bucks on [Banggood](https://www.banggood.com/Geekcreit-FT232RL-FTDI-USB-To-TTL-Serial-Converter-Adapter-Module-For-p-917226.html?rmmds=search&cur_warehouse=CN) or [Amazon](https://amzn.to/35sNe2C). I ordered one from Amazon, but immediately realized that I didn't want to wait the couple of days until it got here, so I started looking for other ways to make the connection.
 
 I have a handful of other ESP8266 development boards laying around from other projects, and those do have a micro-USB connection built into the board. Since the actual ESP8266 chip on those dev boards is also using the same TTL serial connection, it stands to reason those boards must have a built-in converter somewhere. I just needed to figure out how to use it to feed the communication signal through to my Sonoff chip.
 
@@ -80,7 +81,7 @@ To make the connections, I'm just using simple Dupont/jumper wires between the N
 
 If you're working on a Linux machine, you shouldn't need any additional drivers. If you're on Windows or macOS, though, you may need drivers to talk to (through) the NodeMCU board. The board I'm using as the bridge is [this one](https://amzn.to/36tSrbV) from Amazon, which uses the CP2102 chipset, and you can find the drivers on the [Silicon Labs website](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers).
 
-I'll also use the [esptool.py](https://github.com/espressif/esptool) utility from Espressif for communicating with the ESP8266 ROM bootloader on the Sonoff chip. With Python already installed on your system, this is as easy as 
+I'll also use the [esptool.py](https://github.com/espressif/esptool) utility from Espressif for communicating with the ESP8266 ROM bootloader on the Sonoff chip. With Python already installed on your system, this is as easy as
 
 ```sh
 $ pip install esptool
@@ -203,6 +204,11 @@ Hard resetting via RTS pin...
 ```
 
 Notes:
+
 - Change `-fs 1MB` to the size of your actual image
 - Change `image1M.bin` to the name of the binary you want to restore from
 - Check what flash mode you need for your particular board, using the [Espressif documentation](https://github.com/espressif/esptool/wiki/SPI-Flash-Modes) as reference. `dout` was correct for the Sonoff Basic R2, but yours may be different.
+
+---
+
+_Note: if you buy a product from Amazon using any of the links in this post, I may be rewarded with a small commission._
