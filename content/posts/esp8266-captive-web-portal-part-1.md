@@ -16,6 +16,7 @@ series = []
 I've worked on a few small projects recently using an ESP8266 SoC, and one thing that sort of bothered me is that I needed to hard-code my home WiFi access point SSID and password into either the Python file or a separate config file. It's not really that big of a deal for small personal projects, but when I buy "smart" gadgets from anywhere else, they always come with the option to set up the device by connecting to a temporary WiFi access point on the device itself, and then typing my home WiFi SSID and password into a HTML form.
 
 This aim of this project is to program the ESP8266 MCU to:
+
 - On startup, first check if it already knows how to log into my home WiFi. Once I set up a device, I'd expect it to remember the WiFi credentials I told it even if it was rebooted.
 - If it doesn't have any known credentials, or the previously saved credentials don't work, then start an unsecured WiFi access point on bootup instead.
 - With my phone, connect to the MCU WiFi AP, and then enter the SSID and password for my actual home WiFI.
@@ -38,7 +39,7 @@ The only difference from last time is that I'm using a different board this time
 
 {{< figure src="/images/wemos-d1-mini.jpg#center" caption="Wemos D1 Mini (ESP-8266EX chipset" >}}
 
-The one additional step I did need to get the D1 Mini to work was to install an additional driver. All of my search results for this ended up with kind of sketchy-looking websites, but I think the ["official" driver](http://www.wch.cn/download/CH341SER_MAC_ZIP.html) from the manufacturer should be safe. The link above is for the macOS version of the driver, but there's also drivers for [Windows](http://www.wch.cn/downloads/CH341SER_ZIP.html) and [Linux](http://www.wch.cn/downloads/CH341SER_LINUX_ZIP.html) on the same site. 
+The one additional step I did need to get the D1 Mini to work was to install an additional driver. All of my search results for this ended up with kind of sketchy-looking websites, but I think the ["official" driver](http://www.wch.cn/download/CH341SER_MAC_ZIP.html) from the manufacturer should be safe. The link above is for the macOS version of the driver, but there's also drivers for [Windows](http://www.wch.cn/downloads/CH341SER_ZIP.html) and [Linux](http://www.wch.cn/downloads/CH341SER_LINUX_ZIP.html) on the same site.
 
 Aside from this, everything was basically the same except that the Wemos D1 Mini shows up on a different serial port, in my case `/dev/cu.wchusbserial1430`. As a reminder, you can check this yourself using the esptool.py tool [from Espressif](https://github.com/espressif/esptool):
 
@@ -103,11 +104,12 @@ It's possible to use `rshell` to edit files directly (sort of) on the MCU, but I
 - On the MCU, start the `repl` and then `import main`
 
 To start this project off, I'm going to create two files:
+
 - `main.py`, which will kick off the code I want to run and otherwise be available for future project code.
 - `captive_portal.py,` which will coordinate the HTTP and DNS servers to make this WiFi bootstrapping code work.
 
-
 I'll start with `main.py` since it's only a couple of lines:
+
 ```python
 # main.py
 from captive_portal import CaptivePortal
@@ -129,10 +131,10 @@ import utime as time
 class CaptivePortal:
     CRED_FILE = "./wifi.creds"
     MAX_CONN_ATTEMPTS = 10
-    
+
     def __init__(self):
         self.sta_if = network.WLAN(network.STA_IF)
-        
+
         self.ssid = None
         self.password = None
 
@@ -151,7 +153,7 @@ class CaptivePortal:
         # initiate the connection
         self.sta_if.active(True)
         self.sta_if.connect(self.ssid, self.password)
-        
+
         attempts = 0
         while attempts < self.MAX_CONN_ATTEMPTS:
             if not self.sta_if.isconnected():
@@ -163,7 +165,7 @@ class CaptivePortal:
                 self.local_ip = self.sta_if.ifconfig()[0]
                 self.write_creds(self.ssid, self.password)
                 return True
-        
+
         print("Failed to connect to {:s} with {:s}. WLAN status={:d}".format(
             self.ssid, self.password, self.sta_if.status()
         ))
@@ -171,14 +173,14 @@ class CaptivePortal:
         self.ssid = self.password = None
         self.sta_if.active(False)
         return False
-    
+
     def write_creds(self, ssid, password):
         open(self.CRED_FILE, 'wb').write(b','.join([ssid, password]))
         print("Wrote credentials to {:s}".format(self.CRED_FILE))
-    
+
     def captive_portal(self):
         print("Starting captive portal")
-    
+
     def try_connect_from_file(self):
         print("Trying to load WiFi credentials from {:s}".format(self.CRED_FILE))
         try:
@@ -187,19 +189,19 @@ class CaptivePortal:
             if e.args[0] == uerrno.ENOENT:
                 print("{:s} does not exist".format(self.CRED_FILE))
                 return False
-        
+
         contents = open(self.CRED_FILE, 'rb').read().split(b',')
         if len(contents) == 2:
             self.ssid, self.password = contents
         else:
             print("Invalid credentials file:", contents)
             return False
-        
+
         if not self.connect_to_wifi():
             print("Connect with saved credentials failed, starting captive portal")
             os.remove(self.CRED_FILE)
             return False
-        
+
         return True
 ```
 
@@ -212,6 +214,7 @@ The class `__init__()` method sets up variables for eventual SSID and password, 
 For now, the `start()` method is just trying to connect to my home WiFi point from previously-saved credentials if it can, and if not, it will (eventually) start the captive portal itself.
 
 The `try_connect_from_file()` method is fairly straightforward:
+
 - Check if the file exists where we expect WiFi credentials
 - If it does, open it and check that it has two comma separated values
 - If it does, try to connect with those values assuming the first is my home WiFi SSID, and the second is the WiFi password
@@ -236,7 +239,7 @@ Starting captive portal
 
 # Base server class
 
-Since I'll need both a DNS and HTTP server, it makes sense to extract out any common parts into a superclass. The basic functionality of this class will be to create a socket on a specified port and then register it with a stream poller that will notify the server when a new event occurs on the socket. MicroPython has the [uselect module](https://pycopy.readthedocs.io/en/latest/library/uselect.html)  to help deal with streams like this, which is a subset of CPython `select` module. Using this poller, we can run both the HTTP and DNS servers at the same time without either one blocking waiting to listen to its socket.
+Since I'll need both a DNS and HTTP server, it makes sense to extract out any common parts into a superclass. The basic functionality of this class will be to create a socket on a specified port and then register it with a stream poller that will notify the server when a new event occurs on the socket. MicroPython has the [uselect module](https://pycopy.readthedocs.io/en/latest/library/uselect.html) to help deal with streams like this, which is a subset of CPython `select` module. Using this poller, we can run both the HTTP and DNS servers at the same time without either one blocking waiting to listen to its socket.
 
 Here's the Server class I created in a new file:
 
@@ -327,11 +330,11 @@ class CaptivePortal:
         self.local_ip = self.AP_IP
         self.sta_if = network.WLAN(network.STA_IF)
         self.ap_if = network.WLAN(network.AP_IF)
-        
+
         if essid is None:
             essid = b"ESP8266-%s" % binascii.hexlify(self.ap_if.config("mac")[-3:])
         self.essid = essid
-        
+
         self.ssid = None
         self.password = None
     ...
@@ -369,6 +372,7 @@ class CaptivePortal:
 I ran into issues occasionally where if the AP interface was already turned on when I tried to reconfigure it, it would throw an error or else just never configure itself properly. To get around that, I explicitly restart it every time I want it on, and wait for it to report it's active before proceeding.
 
 The `ifconfig()` function call sets (in order):
+
 - IP address
 - Netmask
 - Gateway
@@ -426,11 +430,11 @@ class CaptivePortal:
     def captive_portal(self):
         print("Starting captive portal")
         self.start_access_point()
-        
+
         if self.dns_server is None:
             self.dns_server = DNSServer(self.poller, self.local_ip)
             print("Configured DNS server")
-        
+
         try:
             while True:
                 gc.collect()
@@ -441,7 +445,7 @@ class CaptivePortal:
         except KeyboardInterrupt:
             print("Captive portal stopped")
         self.cleanup()
-    
+
     def handle_dns(self, sock, event, others):
         if sock is self.dns_server.sock:
             # ignore UDP socket hangups
@@ -450,7 +454,7 @@ class CaptivePortal:
             self.dns_server.handle(sock, event, others)
             return True
         return False
-    
+
     def cleanup(self):
         print("Cleaning up")
         if self.dns_server:
@@ -494,6 +498,7 @@ DNS Server stopped
 # Recap
 
 So far, I've accomplished the following:
+
 - Configured the Wemos D1 Mini MCU with MicroPython firmware and established a serial connection.
 - Made the MCU try to connect to an already-known WiFi point if it has one, on bootup.
 - Written a base server class that can bind to a socket and register to receive events on that socket stream.
@@ -502,10 +507,14 @@ So far, I've accomplished the following:
 
 In the next part, I'll tackle how to understand DNS questions and generate an answer that will point all DNS queries back to the MCU's IP address so that the user will always be presented with a login page when they connect to the MCU's WiFi access point.
 
-----------
+---
 
 Next: [Captive Web Portal for ESP8266 with MicroPython - Part 2](https://ansonvandoren.com/posts/esp8266-captive-web-portal-part-2/)
 
 Code: [GitHub project repo](https://github.com/anson-vandoren/esp8266-captive-portal)
 
 Found a problem with this post? Submit a PR to fix it here: [GitHub website repo](https://github.com/anson-vandoren/ansonvandoren.com/blob/master/content/posts/esp8266-captive-web-portal-part-1.md)
+
+---
+
+_Note: if you buy a product from Amazon using any of the links in this post, I may be rewarded with a small commission._
