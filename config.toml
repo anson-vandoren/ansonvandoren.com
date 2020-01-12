@@ -12,6 +12,8 @@ canonifyURLs = true
 
 disqusShortname = "ansonvandoren-com"
 
+enableRobotsTXT = true
+
 [Blackfriday]
     hrefTargetBlank = true
 
