@@ -80,6 +80,14 @@ enableRobotsTXT = true
     weight = 6
     url = "mailto:anson@ansonvandoren.com"
 
+[[params.social]]
+    name = "RSS"
+    icon = "fas fa-rss fa-2x"
+    weight = 7
+    url = "https://ansonvandoren.com/posts/index.xml"
+    rel = "alternate"
+    type = "application/rss+xml"
+
 [[menu.main]]
     name = "About"
     weight = 1
