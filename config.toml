@@ -40,7 +40,7 @@ enableRobotsTXT = true
 
     rtl = false
 
-    math = true
+    math = false
 
     custom_css = ["css/custom.css"]
 
