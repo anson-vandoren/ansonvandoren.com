@@ -10,7 +10,7 @@ defaultContentLanguage = "en"
 paginate = 20
 canonifyURLs = true
 
-disqusShortname = "ansonvandoren-com"
+#disqusShortname = "ansonvandoren-com"
 
 enableRobotsTXT = true
 
