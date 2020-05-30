@@ -19,10 +19,18 @@ draft: false
 
 ## What I'm Currently Doing
 
-**Director of Systems Engineering at Kateeva, Inc.**
+**Director of Software & Systems Engineering at Kateeva, Inc.**
 
-> _I spend most of my time figuring out how to make extraordinarily complex high-volume mass production machines seem simple and easy to their owners. I run a multidisciplinary team that translates business into system requirements, creates the interfaces between sub-systems, owns machine vision and control systems, and drives overall system integration and optimization from concept to installation at a customer site._
+> _I spend most of my time figuring out how to make extraordinarily complex high-volume mass
+> production machines seem simple and easy to their owners. I lead a team that translates
+> business requirements into system requirements, designs and implements the human and
+> factory interfaces, translates print algorithms into machine control software, and drives overall
+> system integration and optimization from concept to installation at a customer site._
 
-**Building tools for automated trading**
+**Building use(ful | less) electronics projects**
 
-> _Because a day job isn't enough to keep me entertained, I'm also digging into quantitative finance and learning how to apply that to cryptocurrency trading and traditional equity markets. Building stuff with Python, Binance, Robinhood, and Go._
+> _Because a day job isn't enough to keep me entertained (and because quarantine means more
+> time spent at home these days), I'm building things like automated thermostats, EEPROM
+> programmers, oh... and an 8-bit CPU from SN7400 logic chips._
+
+> _Switching back and forth between contributing to various open source projects (mainly around web development and quantitative finance), and building my own stuff with Python, Javascript, and Go._
