@@ -21,11 +21,12 @@ draft: false
 
 **Director of Software & Systems Engineering at Kateeva, Inc.**
 
-> _I spend most of my time figuring out how to make extraordinarily complex high-volume mass
-> production machines seem simple and easy to their owners. I lead a team that translates
-> business requirements into system requirements, designs and implements the human and
-> factory interfaces, translates print algorithms into machine control software, and drives overall
-> system integration and optimization from concept to installation at a customer site._
+> _I spend much of my time working to make complex high-volume mass production equipment
+> seem simple and easy to its owner. I lead a team that converts business requirements into
+> system requirements, designs and implements the human and factory interfaces, translates
+> additive manufacturing algorithms into machine control software,
+> and drives overall system integration and optimization from concept to installation at a
+> customer site._
 
 **Building use(ful | less) electronics projects**
 
