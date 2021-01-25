@@ -50,9 +50,10 @@ I didn't want to use the same VPS that hosts my blog, and I also wanted Synapse 
 (e.g., `matrix.ansonvandoren.com`) instead of the domain name itself. Neither of these criteria makes the setup unmanageable,
 but each adds a bit of complexity that I'll describe below.
 
-My domain name is registered through [NameCheap](https://namecheap.com), which has been an absolute pleasure to work
+My domain name is registered through [NameCheap](https://namecheap.pxf.io/mDrKy), which has been an absolute pleasure to work
 with over the last few years. Since the nameservers for `ansonvandoren.com` already point towards DigitalOcean, I don't
-need to make any changes there.
+need to make any changes there. _(Note: I may gain a small commission from Namecheap if you use the link above. You will
+not be charged anything extra for using it. Thanks!)_
 
 If you're starting out from scratch and do need to point a Namecheap domain at a Digital Ocean droplet, you'll want the
 "Custom DNS" setting, and the nameservers shown below:
