@@ -61,7 +61,9 @@
     {{ end }}
 
     {{ range .Site.Params.custom_css }}
-      <link rel="stylesheet" href="{{ . | relURL }}" />
+      <style>body{font-family: merriweather sans,Georgia,serif;}</style>
+      <link rel="preload" href="{{ . | relURL }}" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
+      <noscript><link rel="stylesheet" href="{{ . | relURL }}"></noscript>
     {{ end }}
 
     {{ range .Site.Params.custom_js }}
