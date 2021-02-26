@@ -106,7 +106,7 @@ Let's start with the case where `X` is 1, and see what it takes to get to variou
 
 - There is a "powers of 2" element. Notice that (with `X = 1`, at least) the set `Y = [2, 4, 8, 16, ... 2^n]` is composed solely of double operations, with no decrements.
 
-{{< figure src="/images/broken-calc-3.png#center" caption="`X * 2^n` has no decrements" >}}
+{{< figure src="/images/broken-calc-3.png#center" caption="`X * 2{^n}` has no decrements" >}}
 
 - In addition to the above, one can also see that there are the same number of double operations for all numbers in the set `Y = [2^n + 1...2^(n+1)]`. For example, each of `Y = [9, 10 ... 15, 16]` has exactly 4 double operations, with varying numbers of decrement operations. The same is true (but with exactly 3 double operations) for `Y = [5, 6, 7, 8]`.
 
@@ -132,17 +132,17 @@ def min_ops_magic(x: int, y: int) -> int:
         return x - y
 ```
 
-Next, let's take advantage of the fact that all values in `Y = [2^n + 1...2^(n+1)]` have the same number of double operations. This number of double operations is the same as the power of 2 for the upper bound of that group, or `n+1` in the equation above.
+Next, let's take advantage of the fact that all values in `Y = [2{^n} + 1...2{^n+1}]` have the same number of double operations. This number of double operations is the same as the power of 2 for the upper bound of that group, or `n+1` in the equation above.
 
-In our example, the set `Y = [9, 10, ... 15, 16]` contains all numbers such that`Y > X * 2^3` and `Y ≤ X * 2^4`. So I'll refer to these numbers as being in the "`n == 4`" group. If I use up those 4 operations, I'm left with this:
+In our example, the set `Y = [9, 10, ... 15, 16]` contains all numbers such that`Y > X * 2{^3}` and `Y ≤ X * 2{^4}`. So I'll refer to these numbers as being in the "`n == 4`" group. If I use up those 4 operations, I'm left with this:
 
 {{< figure src="/images/broken-calc-7.png#center" caption="Use up `n == 4` operations" >}}
 
 So what I need to determine is:
 
-- Given inputs `X` and `Y`, what is the smallest `n` such that `Y ≤ X * 2^n`
+- Given inputs `X` and `Y`, what is the smallest `n` such that `Y ≤ X * 2{^n}`
 
-There are a few different ways to code this. I'm also calculating the `2^n` at the same time here, since we'll need that later
+There are a few different ways to code this. I'm also calculating the `2{^n}` at the same time here, since we'll need that later
 
 **Option 1**
 
@@ -159,17 +159,17 @@ def next_pow2(x: int, y: int) -> Tuple[int, int]:
 
 This option works because:
 
-`y = x * 2^n`
+`y = x * 2{^n}`
 
-`y / x = 2^n`
+`y / x = 2{^n}`
 
-`log(y / x) = log(2^n)`
+`log(y / x) = log(2{^n})`
 
 `log(y / x) = n * log(2)`
 
 `log(y / x) / log(2) = n`
 
-`log2(y / x) = n`
+`log{_2}(y / x) = n`
 
 Rounding `n` up to the next highest integer means we can solve for `n` anywhere in the given range.
 
