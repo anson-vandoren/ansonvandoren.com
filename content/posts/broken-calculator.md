@@ -104,11 +104,11 @@ Let's start with the case where `X` is 1, and see what it takes to get to variou
 
 {{< figure src="/images/broken-calc-2.png#center" caption="Even vs. odd" >}}
 
-- There is a "powers of 2" element. Notice that (with `X == 1`, at least) the set `Y = [2, 4, 8, 16, ... 2^n]` is composed solely of double operations, with no decrements.
+- There is a "powers of 2" element. Notice that (with `X = 1`, at least) the set `Y = [2, 4, 8, 16, ... 2^n]` is composed solely of double operations, with no decrements.
 
 {{< figure src="/images/broken-calc-3.png#center" caption="`X * 2^n` has no decrements" >}}
 
-- In addition to the above, one can also see that there are the same number of double operations for all numbers in the set `Y = [2^n + 1...2^(n+1)]`. For example, for each of `Y = [9, 10 ... 15, 16]` has exactly 4 double operations, with varying numbers of decrement operations. The same is true (but with exactly 3 double operations) for `Y = [5, 6, 7, 8]`.
+- In addition to the above, one can also see that there are the same number of double operations for all numbers in the set `Y = [2^n + 1...2^(n+1)]`. For example, each of `Y = [9, 10 ... 15, 16]` has exactly 4 double operations, with varying numbers of decrement operations. The same is true (but with exactly 3 double operations) for `Y = [5, 6, 7, 8]`.
 
 {{< figure src="/images/broken-calc-4.png#center" caption="Same number of double operations in each 'group'" >}}
 
@@ -136,7 +136,7 @@ Next, let's take advantage of the fact that all values in `Y = [2^n + 1...2^(n+1
 
 In our example, the set `Y = [9, 10, ... 15, 16]` contains all numbers such that`Y > X * 2^3` and `Y ≤ X * 2^4`. So I'll refer to these numbers as being in the "`n == 4`" group. If I use up those 4 operations, I'm left with this:
 
-{{< figure src="/images/broken-calc-7.png#center" caption="Use up `n == 3` operations" >}}
+{{< figure src="/images/broken-calc-7.png#center" caption="Use up `n == 4` operations" >}}
 
 So what I need to determine is:
 
