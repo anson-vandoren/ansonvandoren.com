@@ -14,13 +14,6 @@ canonifyURLs = true
 
 enableRobotsTXT = true
 
-[Blackfriday]
-    hrefTargetBlank = true
-
-[markup]
-    [markup.highlight]
-        style = "solarized-dark256"
-
 [params]
     author = "Anson VanDoren"
     info = "Problem Solver, Generalist Engineer, Systems Thinker"
