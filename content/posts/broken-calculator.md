@@ -8,6 +8,7 @@ tags = ["programming", "python", "leetcode"]
 categories = []
 externalLink = ""
 series = []
+katex = true
 +++
 
 # I don't normally do LeetCode problems...
@@ -28,30 +29,31 @@ The challenge is to get from a starting number on the calculator to a given seco
 
 The example given is:
 
-- Input: X = 2, Y = 3
-- Output: 2
-- Explanation: Use double operation, and then decrement operation {2 -> 4 -> 3}
+- Input: $x = 2, y = 3$
+- Output: $2$
+- Explanation: Use double operation, and then decrement operation $[ 2
+  \rightarrow 4 \rightarrow 3]$
 
 Anyway, calculator vagaries aside, the code needed to solve this puzzle should:
 
-- Given any starting number `X`
-- Using only the **double** (`X = X * 2`) and/or **decrement** (`X = X - 1`) operations
-- Determine the minimum operations needed to arrive at arbitrarily chosen `Y`
+- Given any starting number $x$
+- Using only the **double** $(x = x \cdot 2)$ and/or **decrement** $(x = x - 1)$ operations
+- Determine the minimum operations needed to arrive at arbitrarily chosen $y$
 
-The immediately obvious, and (as far as I can tell) wrong way to look at this problem is to do what's stated, and try to get from `X` to `Y`. Having done a few coding challenges before, I've learned that it's often helpful to start by working backwards from the solution, and that turned out to be useful in this case as well.
+The immediately obvious, and (as far as I can tell) wrong way to look at this problem is to do what's stated, and try to get from $x$ to $y$. Having done a few coding challenges before, I've learned that it's often helpful to start by working backwards from the solution, and that turned out to be useful in this case as well.
 
 Once I got to this backwards mindset, the rest fell into place pretty quickly:
 
-- If `Y` is less than `X`:
-  - Decrement `X` until it equals `Y` and return the number of operations. There is no doubling in this case.
-  - A quicker way to look this is to just return `X - Y`
-- If `Y` equals `X`, then return 0
-- If `Y` is greater than `X`:
-  - If `Y` is an odd number, increment `Y` by 1 (since we're going backwards, incrementing here is equivalent to decrementing if starting from `X`)
-  - If `Y` is an even number:
-    - If `Y` is greater than `X`, divide `Y` by 2 (equivalent to doubling `X`, one of the two permitted operations).
-    - If `Y` is less than `X`, then increment `Y` until you arrive at `X`
-- Loop through this sequence until `Y` is equal to `X`
+- If $y$ is less than $x$:
+  - Decrement $x$ until it equals $y$ and return the number of operations. There is no doubling in this case.
+  - A quicker way to look this is to just return $x - y$
+- If $y$ equals $x$, then return $0$
+- If $y$ is greater than $x$:
+  - If $y$ is an odd number, increment $y$ by $1$ (since we're going backwards, incrementing here is equivalent to decrementing if starting from $x$)
+  - If $y$ is an even number:
+    - If $y$ is greater than $x$, divide $y$ by $2$ (equivalent to doubling $x$, one of the two permitted operations).
+    - If $y$ is less than $x$, then increment $y$ until you arrive at $x$
+- Loop through this sequence until $y$ is equal to $x$
 
 This ends up looking like some variation of the below Python code:
 
@@ -94,7 +96,7 @@ Many hours and 18 sheets of scratch paper later...
 
 Here we go.
 
-Let's start with the case where `X` is 1, and see what it takes to get to various `Y` values:
+Let's start with the case where $x$ is 1, and see what it takes to get to various $y$ values:
 
 {{< figure src="/images/broken-calc-1.png#center" caption="X=1 for various Y" >}}
 
@@ -104,19 +106,19 @@ Let's start with the case where `X` is 1, and see what it takes to get to variou
 
 {{< figure src="/images/broken-calc-2.png#center" caption="Even vs. odd" >}}
 
-- There is a "powers of 2" element. Notice that (with `X = 1`, at least) the set `Y = [2, 4, 8, 16, ... 2^n]` is composed solely of double operations, with no decrements.
+- There is a "powers of 2" element. Notice that (with $x = 1$, at least) the set $y = [2, 4, 8, 16, ... 2^n]$ is composed solely of double operations, with no decrements.
 
-{{< figure src="/images/broken-calc-3.png#center" caption="`X * 2{^n}` has no decrements" >}}
+{{< figure src="/images/broken-calc-3.png#center" caption="$x \cdot 2^n$ has no decrements" >}}
 
-- In addition to the above, one can also see that there are the same number of double operations for all numbers in the set `Y = [2^n + 1...2^(n+1)]`. For example, each of `Y = [9, 10 ... 15, 16]` has exactly 4 double operations, with varying numbers of decrement operations. The same is true (but with exactly 3 double operations) for `Y = [5, 6, 7, 8]`.
+- In addition to the above, one can also see that there are the same number of double operations for all numbers in the set $y = [2^n + 1...2^{n+1}]$. For example, each of $y = [9, 10 ... 15, 16]$ has exactly 4 double operations, with varying numbers of decrement operations. The same is true (but with exactly 3 double operations) for $y = [5, 6, 7, 8]$.
 
 {{< figure src="/images/broken-calc-4.png#center" caption="Same number of double operations in each 'group'" >}}
 
-- Comparing the `Y = [9, 10 ... 15, 16]` set again, it appears that the "upper" half is a repeat of the "lower half", but instead of each row having at least 3 double operations at the start, each has instead two doubles, a decrement, and then another double. Along with this, the "right side" of the pattern from `Y = [13, 14, 15, 16]` is repeated, but one operation "rightward".
+- Comparing the $y = [9, 10 ... 15, 16]$ set again, it appears that the "upper" half is a repeat of the "lower half", but instead of each row having at least 3 double operations at the start, each has instead two doubles, a decrement, and then another double. Along with this, the "right side" of the pattern from $y = [13, 14, 15, 16]$ is repeated, but one operation "rightward".
 
 {{< figure src="/images/broken-calc-5.png#center" caption="Repeating blocks" >}}
 
-- Finally, the same pattern at the trailing edge of the `Y = [9 ... 16]` set is also seen in the `Y = [5 ... 8]` set, and looks like it might be starting in the `Y = [3, 4]` set, but isn't complete.
+- Finally, the same pattern at the trailing edge of the $y = [9 ... 16]$ set is also seen in the $y = [5 ... 8]$ set, and looks like it might be starting in the $y = [3, 4]$ set, but isn't complete.
 
 {{< figure src="/images/broken-calc-6.png#center" caption="Repeating blocks pt. 2" >}}
 
@@ -124,7 +126,7 @@ Let's start with the case where `X` is 1, and see what it takes to get to variou
 
 So glad you asked...
 
-Let's start with same condition to handle the case when `Y` is less than `X`. There's not much fun going on in that portion, since it's just a matter of decrementing until you arrive at the result.
+Let's start with same condition to handle the case when $y$ is less than $x$. There's not much fun going on in that portion, since it's just a matter of decrementing until you arrive at the result.
 
 ```python
 def min_ops_magic(x: int, y: int) -> int:
@@ -132,17 +134,17 @@ def min_ops_magic(x: int, y: int) -> int:
         return x - y
 ```
 
-Next, let's take advantage of the fact that all values in `Y = [2{^n} + 1...2{^n+1}]` have the same number of double operations. This number of double operations is the same as the power of 2 for the upper bound of that group, or `n+1` in the equation above.
+Next, let's take advantage of the fact that all values in $y = [2^n + 1...2^{n+1}]$ have the same number of double operations. This number of double operations is the same as the power of 2 for the upper bound of that group, or $n+1$ in the equation above.
 
-In our example, the set `Y = [9, 10, ... 15, 16]` contains all numbers such that`Y > X * 2{^3}` and `Y ≤ X * 2{^4}`. So I'll refer to these numbers as being in the "`n == 4`" group. If I use up those 4 operations, I'm left with this:
+In our example, the set $y = [9, 10, ... 15, 16]$ contains all numbers such that $y > x \cdot 2^3$ and $y ≤ x \cdot 2^4$. So I'll refer to these numbers as being in the "$n == 4$" group. If I use up those 4 operations, I'm left with this:
 
-{{< figure src="/images/broken-calc-7.png#center" caption="Use up `n == 4` operations" >}}
+{{< figure src="/images/broken-calc-7.png#center" caption="Use up $n == 4$ operations" >}}
 
 So what I need to determine is:
 
-- Given inputs `X` and `Y`, what is the smallest `n` such that `Y ≤ X * 2{^n}`
+- Given inputs $x$ and $y$, what is the smallest $n$ such that $y ≤ x \cdot 2^n$
 
-There are a few different ways to code this. I'm also calculating the `2{^n}` at the same time here, since we'll need that later
+There are a few different ways to code this. I'm also calculating the $2^n$ at the same time here, since we'll need that later
 
 **Option 1**
 
@@ -159,19 +161,20 @@ def next_pow2(x: int, y: int) -> Tuple[int, int]:
 
 This option works because:
 
-`y = x * 2{^n}`
+$$y = x \cdot 2^n$$
 
-`y / x = 2{^n}`
+$$\frac{y}{x} = 2^n$$
 
-`log(y / x) = log(2{^n})`
+$$log(\frac{y}{x}) = log(2^n)$$
 
-`log(y / x) = n * log(2)`
+$$log(\frac{y}{x}) = n \cdot log(2)$$
 
-`log(y / x) / log(2) = n`
+$$\frac{log(\frac{y}{x})}{log(2)} = n$$
 
-`log{_2}(y / x) = n`
+$$log_2(\frac{y}{x}) = n$$
 
-Rounding `n` up to the next highest integer means we can solve for `n` anywhere in the given range.
+
+Rounding $n$ up to the next highest integer means we can solve for $n$ anywhere in the given range.
 
 **Option 2**
 
@@ -188,15 +191,15 @@ def next_pow2(x: int, y: int) -> Tuple[int, int]:
     return n, pow_of_two
 ```
 
-This option uses bit-shifting to count how many times we need to shift a bit left (starting from binary `1`), which is the same operation as incrementing `n`:
+This option uses bit-shifting to count how many times we need to shift a bit left (starting from binary $1$), which is the same operation as incrementing $n$:
 
-`0001 == 1`
+$$0001 == 1$$
 
-`0010 == 2`
+$$0010 == 2$$
 
-`0100 == 4`
+$$0100 == 4$$
 
-`1000 == 8`
+$$1000 == 8$$
 
 Initially I thought that Option 2 would've been faster, but after some timing checks it seems I was wrong, and the `log2()` operation was noticeably quicker.
 
@@ -245,7 +248,7 @@ See the pattern? I didn't at first, either. Try now:
 
 There's a very tempting, obvious, and generally incorrect solution that involves adding all the "1" bits of the index number to get the remaining operations needed. In fact, it does work for the case I'm showing here, but it doesn't work for all cases. I'll get to that part in a second. Hopefully for now you can just take my word for it, at least for a couple more steps.
 
-Instead of adding all of the "1" bits together, I only want to add `n` least significant bits. I know, I know... in this case that means all of the bits. But I promise that's not the case for all `X`s and `Y`s.
+Instead of adding all of the "1" bits together, I only want to add $n$ least significant bits. I know, I know... in this case that means all of the bits. But I promise that's not the case for all $x$s and $y$s.
 
 Let's get some more code going. This is only an additional two lines, so I'll just add it to the algorithm we already have and highlight the changes below:
 
@@ -266,27 +269,27 @@ def min_ops_magic(x: int, y: int) -> int:
 
 Getting the index is fairly straightforward: just subtract `Y` from the highest number in this 'bin'.
 
-Summing up the "1"s in the `n` least significant bits is pretty Python-specific, and there's several other ways to do it as well. In Python 3.10 (which should be released this year), there's actually a new `int.bit_count()` method which will do exactly this, and much faster. At any rate, this line is just converting the integer `idx` to a binary string representation, slicing only the last `n` characters of that string, and then counting how many of those characters are `"1"`.
+Summing up the "1"s in the $n$ least significant bits is pretty Python-specific, and there's several other ways to do it as well. In Python 3.10 (which should be released this year), there's actually a new `int.bit_count()` method which will do exactly this, and much faster. At any rate, this line is just converting the integer `idx` to a binary string representation, slicing only the last $n$ characters of that string, and then counting how many of those characters are `"1"`.
 
-Again, note that even though _in this particular case_ the number of bits in these numbers happens to be 3 or fewer (for `n == 3`), that isn't always the case, so we can't count all of the bits.
+Again, note that even though _in this particular case_ the number of bits in these numbers happens to be 3 or fewer (for $n == 3$), that isn't always the case, so we can't count all of the bits.
 
 We're very close now. As promised, here's a case where we we need to add one final term to get our total operations:
 
 # The "magic", Part 2 - MSBs
 
-I chose a somewhat-but-not-quite random `X` value, and set of `Y` values for this example. Feel free to verify this works for other values, though.
+I chose a somewhat-but-not-quite random $x$ value, and set of $y$ values for this example. Feel free to verify this works for other values, though.
 
 > Spoiler alert: it does
 
-Let's check with `X = 10` and the bucket of `Y = [21, 22 ... 39, 40]`
+Let's check with $x = 10$ and the bucket of $y = [21, 22 ... 39, 40]$
 
 {{< figure src="/images/broken-calc-11.png#center" caption="Splitting MSB from LSB" >}}
 
-Again, I've blocked out the `n=2` operations, and am left with a few tetronimos, and some big boxes that would be a Tetris nightmare. You can see I've also filled in the `idx` values for each row and written them out in binary.
+Again, I've blocked out the $n=2$ operations, and am left with a few tetronimos, and some big boxes that would be a Tetris nightmare. You can see I've also filled in the `idx` values for each row and written them out in binary.
 
-Remember how I said we can only use the `n` least significant bits in the previous calculation? Take a look in this example what would happen if we used all of them. Wrong answers all over the place...
+Remember how I said we can only use the $n$ least significant bits in the previous calculation? Take a look in this example what would happen if we used all of them. Wrong answers all over the place...
 
-OK, so if we can only use the `n` LSBs for that calculation, why did I write out all the MSBs anyway?
+OK, so if we can only use the $n$ LSBs for that calculation, why did I write out all the MSBs anyway?
 
 Only because this is the final piece of the puzzle.
 
@@ -319,9 +322,9 @@ def min_ops_magic(x: int, y: int) -> int:
     return n + lsb_ones + msb_vals
 ```
 
-Since we've already gotten what we needed from the `n` LSBs of the index, just shift it right by `n` bits to get at the MSBs that we care about. No special conversion needed after that - we're still just treating it as an integer.
+Since we've already gotten what we needed from the $n$ LSBs of the index, just shift it right by $n$ bits to get at the MSBs that we care about. No special conversion needed after that - we're still just treating it as an integer.
 
-Finally, the answer to the question of life, the universe, and everything (or at least this LeetCode puzzle) is simply the sum of the 2's exponent, the sum of the `n` LSB "1" values, and the number represented by the leftover MSBs.
+Finally, the answer to the question of life, the universe, and everything (or at least this LeetCode puzzle) is simply the sum of the 2's exponent, the sum of the $n$ LSB "1" values, and the number represented by the leftover MSBs.
 
 Crazy, right?
 
