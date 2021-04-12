@@ -81,6 +81,12 @@ enableRobotsTXT = true
     rel = "alternate"
     type = "application/rss+xml"
 
+[[params.social]]
+    name = "Anson Is..."
+    icon = "fas fa-user fa-2x"
+    weight = 8
+    url = "https://anson.is"
+
 [[menu.main]]
     name = "About"
     weight = 1
