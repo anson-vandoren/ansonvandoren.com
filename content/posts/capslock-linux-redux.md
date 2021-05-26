@@ -152,12 +152,111 @@ $ sudo systemctl status udevmon
              └─30720 uinput -d /dev/input/event0
 ```
 
+# OK, but...
+
+So this is great, and it indeed makes CapsLock behave the way I want it to - Escape
+when tapped, and Control when held down in combination with another key. All well
+and good, right?... right?...
+
+Of course it can't be that simple. Everything worked fine right up until the point where
+I remapped a few other keys on the keyboard using `gnome-tweaks`. Although I frequently
+switch between Windows and macOS, I'm most comfortable with macOS-ish (sort of) modifier
+keys. I prefer the left-most key on the bottom row to act like a Windows key (i.e., to open
+up the Start menu or launcher), then the Fn key (which I don't use), then the Alt/Opt key,
+then the Command/Control key. `gnome-tweaks` has this exact swapperoo that I want (called
+"Left Alt as Ctrl, Left Ctrl as Win, Left Win as Left Alt", under the "Ctrl position"
+setting. Great. Enable that, re-login to enable it, and... whoops. Now CapsLock still works
+as Escape, but no longer works as Ctrl.
+
+A bit of digging around shows that `caps2esc` doesn't play well with anything else that
+modifies the keyboard, particularly if the other mapping has lower priority. Hmm... After
+trying out a different ways of remapping the keys I wanted, and getting the same results,
+I finally found another plugin (unofficial) for `interception` that worked, with
+a bit of playing around.
+
+## interception-k2k
+
+This [plugin](https://github.com/zsugabubus/interception-k2k) does quite a few different
+things, but what I really need it for is pretty simple: add another pipeline step
+in the `interception` chain that will remap the modifier keys *before* caps2esc gets
+hold of them. Instead of having a one-size-fits-all scope, this plugin lets you define
+your own keymappings in a way that `interception` can pipeline them.
+
+Here's what I did:
+
+### Clone the repo
+
+```sh
+$ cd ~/src
+$ git clone git@github.com:zsugabubus/interception-k2k
+```
+
+### Create a new keymapping configuration
+
+```sh
+$ mkdir ~/src/interception-k2k/default/swapsies
+$ nvim ~/src/interception-k2k/default/swapsies/map-rules.h.in
+```
+
+Add the following to this file:
+
+```c
+{ .from_key = KEY_LEFTCTRL, .to_key = KEY_LEFTMETA },
+{ .from_key = KEY_LEFTMETA, .to_key = KEY_LEFTALT },
+{ .from_key = KEY_LEFTALT, .to_key = KEY_LEFTCTRL }
+```
+
+### Build the pipeline step
+
+```sh
+$ cd ~/src/interception-k2k
+$ make
+touch default/swapsies/tap-rules.h.in
+touch default/swapsies/multi-rules.h.in
+cc -std=c99 -O3 -g -Wall -Wextra -Werror -Wno-type-limits -Idefault -Idefault/swapsies k2k.c -o out/swapsies
+rm default/swapsies/multi-rules.h.in default/swapsies/tap-rules.h.in
+```
+
+This builds an executable from the rules I just specified, and puts it
+in the `./out/` folder.
+
+### Move the pipeline executable somewhere sane
+
+```sh
+$ sudo mkdir -p /opt/interception
+$ sudo cp ~/src/interception-k2k/out/swapsies /opt/interception/
+```
+
+### Update `udevmon` to add this pipeline step
+
+> IMPORTANT: this step MUST come before the `caps2esc` step, otherwise it doesn't
+fix the problem at all
+
+```sh
+$ sudo nvim /etc/interception/udevmon.yaml
+```
+
+Add the new pipeline step in the `JOB` section as the first pipeline. The file
+should look like this afterwards:
+
+```yaml
+- JOB: intercept -g $DEVNODE | /opt/interception/swapsies | caps2esc | uinput -d $DEVNODE
+  DEVICE:
+    EVENTS:
+      EV_KEY: [KEY_CAPSLOCK, KEY_ESC]
+```
+
+### Restart `udevmon`
+
+```sh
+$ sudo systemctl restart udevmon
+```
+
 # Profit
 
-OK, so writing all that out makes it seem not so bad, and it truly wasn't. But, as usual, if
-I don't write it down now with all the steps that collectively took me an hour to figure out,
-I'll end up repeating that sometime in the future. Now, as long as I can remember that
-I actually blogged about this, I should be able to save a little time.
-
+It took a re-login after this to get things working, after initially finding
+that my key-repeat and delay settings had been clobbered. After logging out
+and back in again, though everything seems to be working properly, and I've
+finally got what I wanted.
 
 
