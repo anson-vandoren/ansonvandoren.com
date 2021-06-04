@@ -1,7 +1,8 @@
 baseURL = "http://ansonvandoren.com/"
 title = "Anson VanDoren"
 newContentEditor = "vim"
-googleAnalytics = "UA-132809117-1"
+#googleAnalytics = "UA-132809117-1"
+googleAnalytics = "G-VFVWVQ9LER"
 
 theme = "hugo-coder"
 languageCode = "en"
