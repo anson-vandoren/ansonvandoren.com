@@ -43,24 +43,28 @@ enableRobotsTXT = true
     icon = "fab fa-github fa-2x"
     weight = 1
     url = "https://github.com/anson-vandoren/"
+    rel = "me"
 
 [[params.social]]
     name = "LinkedIn"
     icon = "fab fa-linkedin fa-2x"
     weight = 2
-    url = "https://www.linkedin.com/in/anson-vandoren-b26793a0/"
+    url = "https://www.linkedin.com/in/anson-vandoren/"
+    rel = "me"
 
 [[params.social]]
     name = "Twitter"
     icon = "fab fa-twitter fa-2x"
     weight = 3
     url = "https://twitter.com/followingmywife"
+    rel = "me"
 
 [[params.social]]
     name = "Instagram"
     icon = "fab fa-instagram fa-2x"
     weight = 4
     url = "https://instagram.com/ansonvandoren"
+    rel = "me"
 
 [[params.social]]
     name = "Telegram"
@@ -73,6 +77,7 @@ enableRobotsTXT = true
     icon = "far fa-envelope fa-2x"
     weight = 6
     url = "mailto:anson@ansonvandoren.com"
+    rel = "me"
 
 [[params.social]]
     name = "RSS"
