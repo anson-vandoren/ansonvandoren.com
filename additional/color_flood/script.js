@@ -100,3 +100,16 @@ function updateClicks() {
 
 const board = generateRandomBoard();
 renderBoard(board);
+// Add this function to toggle the 'expanded' class
+function toggleRules() {
+    const rulesElement = document.getElementById("rules");
+    rulesElement.classList.toggle("expanded");
+}
+
+// Add this code to the end of your script.js file
+document.addEventListener("DOMContentLoaded", function () {
+    const rulesHeading = document.querySelector("#rules > h3");
+    if (rulesHeading) {
+        rulesHeading.addEventListener("click", toggleRules);
+    }
+});

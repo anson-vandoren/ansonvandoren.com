@@ -42,8 +42,10 @@ h2 > #clicksCounter {
     grid-template-columns: repeat(16, 1fr);
     grid-template-rows: repeat(16, 1fr);
     grid-gap: 1px;
-    width: 75vmin;
-    height: 75vmin;
+    width: 100%;
+    height: 100%;
+    max-width: 75vmin;
+    max-height: 75vmin;
     margin: 1em;
 }
 
@@ -64,10 +66,33 @@ h2 > #clicksCounter {
 ol {
     font-size: 1.1em;
     color: #444;
+    margin: 0;
+    padding-left: 1.2em;
 }
 
 @media screen and (min-width: 768px) {
     #rules {
         width: 80%;
+        overflow: hidden;
+    }
+    
+    ol {
+        font-size: 1.2em;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    h3 {
+        cursor: pointer;
+    }
+
+    #rules {
+        height: 3em;
+        overflow: hidden;
+        transition: height 0.4s;
+    }
+
+    #rules.expanded {
+        height: auto;
     }
 }
