@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Color Flood Game</title>
+</head>
+<body>
+    <h1>Color Flood Game</h1>
+    <h2>Clicks: <span id="clicksCounter">0</span></h2>
+    <div id="gameBoard"></div>
+    <div id="rules">
+        <h3>Game Rules:</h3>
+        <ol>
+            <li>The goal is to make the entire board the same color as the top-left square.</li>
+            <li>Click on a square adjacent to the connected squares to change their color.</li>
+            <li>Connected squares are those that share a color with the top-left square and are directly or indirectly adjacent to it.</li>
+            <li>Only adjacent squares can be clicked; clicking a non-adjacent square does not count as a turn and nothing will happen.</li>
+            <li>Keep track of the number of clicks it takes to complete the game!</li>
+        </ol>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
