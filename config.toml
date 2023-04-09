@@ -18,7 +18,7 @@ enableRobotsTXT = true
 [params]
     author = "Anson VanDoren"
     info = "Problem Solver, Generalist Engineer, Systems Thinker"
-    description = "AnsonVanDoren.com"
+    description = "Occasional blog posts about programming, engineering, and assorted other things I find interesting."
     images = ["images/avatar.jpeg"]
     keywords = "blog,developer,personal,engineering,programming"
     avatarURL = "images/avatar.jpeg"
