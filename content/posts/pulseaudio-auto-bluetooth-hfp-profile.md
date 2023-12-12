@@ -61,6 +61,9 @@ to detect when this particular headset is connected and run an arbitrary script,
 First thing I need here is to know how PulseAudio refers to this headset. I paired and connected the earbuds to my computer, then ran:
 
 ```bash
+# Note: in some cases you may need to substitute `pacmd` instead of `pactl`
+# in the places it's used in the rest of this article. Thanks Anya for
+# pointing this out to me!
 $ pactl list
 ...
 Card #20
@@ -101,9 +104,14 @@ This output tells me a few things I need to know:
 
 With that information, I can write a script to switch the profile:
 
+**Note**: if you have a managed user instead of a local one, you may need to `id -u
+myuser` to get the proper user id, and use it in place of `1000` in the script below.
+Thanks again to Anya for pointing this out to me.
+
 ```bash
 #!/bin/bash
 sleep 2 # wait for the headset to fully connect
+# if `pactl` below doesn't work for you, `pacmd` instead might get you going.
 sudo -u '#1000' XDG_RUNTIME_DIR=/run/user/1000 \
     pactl set-card-profile bluez_card.70_BF_92_C9_F5_D0 handsfree_head_unit
 logger "Switched Jabra headset to HFP profile"
