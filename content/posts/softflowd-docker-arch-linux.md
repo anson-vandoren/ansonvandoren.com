@@ -17,7 +17,7 @@ those people is likely to be future-me, so I'm writing it down here anyway.
 
 I really like Arch. I mean, at least I really want to like it. On some days, I actually
 do. Yesterday was not one of those days. For some testing at work (oh, hey, by the way,
-if you like the content on this blog and like haking on things until they work and care
+if you like the content on this blog and like hacking on things until they work and care
 about writing super-performant code and don't hate Typescript and NodeJS, you may be
 interested at working at [Cribl](https://cribl.io/careers/) with me)... where was I?...
 Oh, right, I was taking a look at how we can integrate with NetFlow and IPFIX data, and
