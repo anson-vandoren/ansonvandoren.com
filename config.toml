@@ -5,11 +5,13 @@ newContentEditor = "vim"
 googleAnalytics = "G-VFVWVQ9LER"
 
 theme = "hugo-coder"
-languageCode = "en"
+locale = "en"
 defaultContentLanguage = "en"
 
-paginate = 20
 canonifyURLs = true
+
+[pagination]
+    pagerSize = 20
 
 #disqusShortname = "ansonvandoren-com"
 

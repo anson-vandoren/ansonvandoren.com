@@ -1,0 +1,4 @@
+{{- $user := .Get 0 -}}
+{{- $gist := .Get 1 -}}
+{{- $file := .Get 2 -}}
+<script src="https://gist.github.com/{{ $user }}/{{ $gist }}.js{{ with $file }}?file={{ . | urlquery }}{{ end }}"></script>
